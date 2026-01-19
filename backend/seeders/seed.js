@@ -55,7 +55,7 @@ const seedDatabase = async () => {
         role: 'researcher',
         isActive: true
       }
-    ]);
+    ], {individualHooks: true});
     console.log(`✓ Created ${users.length} users\n`);
 
     // Seed Species
