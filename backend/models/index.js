@@ -78,7 +78,7 @@ IoTData.belongsTo(Species, {
 // Synchronize database
 const syncDatabase = async () => {
   try {
-    await sequelize.sync({ force: true });
+    await sequelize.sync({ force: false });
     console.log('✓ Database synchronized successfully');
     console.log('✓ All tables created/updated');
   } catch (error) {
