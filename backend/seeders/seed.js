@@ -55,7 +55,7 @@ const seedDatabase = async () => {
         role: 'researcher',
         isActive: true
       }
-    ], {individualHooks: true});
+    ], {individualHooks: true}); // Ensure beforeCreate hooks run so passwords are hashed
     console.log(`✓ Created ${users.length} users\n`);
 
     // Seed Species
