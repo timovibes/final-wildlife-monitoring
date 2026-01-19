@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { User, Species, Sighting, Incident } = require('../models');
 const bcrypt = require('bcryptjs');
 
