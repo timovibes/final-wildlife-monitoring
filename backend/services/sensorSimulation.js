@@ -57,6 +57,20 @@ const SENSORS = [
     speciesId: null,
     baseLocation: { lat: -1.29, lng: 36.83 },
     movementRadius: 0
+  },
+  {
+    id: 'GPS_COLLAR_003',                        // ← Unique sensor ID
+    deviceType: 'GPS Collar',                    // ← Device type
+    speciesId: null,                             // ← Optional: link to species
+    baseLocation: { lat: -1.32, lng: 36.88 },   // ← Starting GPS coordinates
+    movementRadius: 0.06                         // ← How far it can move (in degrees)
+  },
+  {
+    id: 'CAMERA_TRAP_002',
+    deviceType: 'Camera Trap',
+    speciesId: null,
+    baseLocation: { lat: -1.27, lng: 36.84 },
+    movementRadius: 0.001
   }
 ];
 
