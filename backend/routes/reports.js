@@ -25,7 +25,7 @@ router.get('/dashboard', authMiddleware, async (req, res) => {
       totalIncidents,
       totalUsers,
       endangeredSpecies,
-      activeSensors
+      sensorCountResult
     ] = await Promise.all([
       Species.count(),
       Sighting.count(),
@@ -33,10 +33,13 @@ router.get('/dashboard', authMiddleware, async (req, res) => {
       User.count(),
       Species.count({ where: { isEndangered: true } }),
       sequelize.query(
-        'SELECT COUNT(DISTINCT "sensorId") as count FROM iot_data',
+        'SELECT COUNT(DISTINCT "sensorId") as count FROM iot_data WHERE "sensorId" IS NOT NULL',
         { type: sequelize.QueryTypes.SELECT }
       )
     ]);
+
+    // Extract the actual count from the query result
+    const activeSensors = parseInt(sensorCountResult[0]?.count) || 0;
 
     // Recent activity
     const recentSightings = await Sighting.findAll({
@@ -75,7 +78,7 @@ router.get('/dashboard', authMiddleware, async (req, res) => {
           totalIncidents,
           totalUsers,
           endangeredSpecies,
-          activeSensors: activeSensors[0]?.count || 0
+          activeSensors
         },
         recentActivity: {
           sightings: recentSightings,
