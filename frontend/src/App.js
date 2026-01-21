@@ -103,29 +103,36 @@ import ResearcherDashboard from './components/researcher/Dashboard';
 // NEW: This wrapper component handles the conditional Navbar
 function AppContent() {
   const location = useLocation();
-  
-  // Define the paths where you DON'T want the global Navbar to show
+  const isAuthenticated = !!localStorage.getItem('user');
+
+  // 1. Pages that should have NO navbar at all
+  const authPaths = ['/login', '/register'];
+  const isAuthPage = authPaths.includes(location.pathname);
+
+  // 2. Pages that have their OWN internal headers (your dashboards)
   const dashboardPaths = ['/admin', '/ranger', '/researcher', '/dashboard'];
-  const isDashboard = dashboardPaths.some(path => location.pathname.startsWith(path));
+  const isDashboardPage = dashboardPaths.some(path => location.pathname.startsWith(path));
 
   return (
     <div className="app-container">
-      {/* Only show Navbar if we are NOT in a dashboard */}
-      {!isDashboard && <Navbar />}
+      {/* Logic: Only show the GLOBAL Navbar if:
+          - We are NOT on a login/register page
+          - AND we are NOT on a dashboard (to avoid double headers)
+          - AND the user is actually logged in
+      */}
+      {!isAuthPage && !isDashboardPage && isAuthenticated && <Navbar />}
       
       <Routes>
-        {/* Public Routes */}
+        {/* Your routes remain the same */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Generic Dashboard Route */}
         <Route path="/dashboard" element={
           <ProtectedRoute>
             <DashboardRedirect />
           </ProtectedRoute>
         } />
 
-        {/* Role-Specific Routes */}
         <Route path="/admin" element={<ProtectedRoute role="admin"><AdminDashboard /></ProtectedRoute>} />
         <Route path="/ranger" element={<ProtectedRoute role="ranger"><RangerDashboard /></ProtectedRoute>} />
         <Route path="/researcher" element={<ProtectedRoute role="researcher"><ResearcherDashboard /></ProtectedRoute>} />
