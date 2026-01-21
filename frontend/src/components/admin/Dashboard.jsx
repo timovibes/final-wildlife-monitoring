@@ -3,6 +3,7 @@ import { Users, Layers, Eye, AlertTriangle, Activity, TrendingUp } from 'lucide-
 import Navbar from '../shared/Navbar';
 import authService from '../../services/auth';
 import api from '../../services/api';
+import IoTDataViewer from './IoTDataViewer';
 
 const AdminDashboard = () => {
   const user = authService.getCurrentUser();
@@ -263,6 +264,7 @@ const AdminDashboard = () => {
             )}
           </div>
         </div>
+        <IoTDataViewer />
 
         {/* Quick Actions */}
         <div className="bg-white rounded-lg shadow p-6">
