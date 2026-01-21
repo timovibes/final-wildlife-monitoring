@@ -26,57 +26,50 @@ const SENSORS = [
   {
     id: 'GPS_COLLAR_001',
     deviceType: 'GPS Collar',
-    speciesId: null, // Will be set dynamically
-    baseLocation: { lat: -1.2921, lng: 36.8219 }, // Nairobi National Park
-    movementRadius: 0.05 // ~5km radius
+    speciesId: null,
+    baseLocation: { lat: -1.3730, lng: 36.8520 }, // Central Plains
+    movementRadius: 0.03 
   },
   {
     id: 'GPS_COLLAR_002',
     deviceType: 'GPS Collar',
     speciesId: null,
-    baseLocation: { lat: -1.3, lng: 36.85 },
-    movementRadius: 0.08
+    baseLocation: { lat: -1.4150, lng: 36.9120 }, // Near Athi Basin
+    movementRadius: 0.04
   },
   {
     id: 'CAMERA_TRAP_001',
     deviceType: 'Camera Trap',
     speciesId: null,
-    baseLocation: { lat: -1.28, lng: 36.82 },
-    movementRadius: 0.001 // Fixed location
+    baseLocation: { lat: -1.3550, lng: 36.7650 }, // Forest edge (West)
+    movementRadius: 0.001 
   },
   {
     id: 'MOTION_SENSOR_001',
     deviceType: 'Motion Sensor',
     speciesId: null,
-    baseLocation: { lat: -1.31, lng: 36.87 },
+    baseLocation: { lat: -1.3900, lng: 36.8300 }, // Near a Hippo pool
     movementRadius: 0.002
   },
   {
     id: 'WEATHER_STATION_001',
     deviceType: 'Weather Station',
     speciesId: null,
-    baseLocation: { lat: -1.29, lng: 36.83 },
+    baseLocation: { lat: -1.3350, lng: 36.8650 }, // Near East Gate
     movementRadius: 0
   },
   {
-    id: 'GPS_COLLAR_003',                        // ← Unique sensor ID
-    deviceType: 'GPS Collar',                    // ← Device type
-    speciesId: null,                             // ← Optional: link to species
-    baseLocation: { lat: -1.32, lng: 36.88 },   // ← Starting GPS coordinates
-    movementRadius: 0.06                         // ← How far it can move (in degrees)
-  },
-  {
-    id: 'CAMERA_TRAP_002',
-    deviceType: 'Camera Trap',
+    id: 'GPS_COLLAR_003',
+    deviceType: 'GPS Collar',
     speciesId: null,
-    baseLocation: { lat: -1.27, lng: 36.84 },
-    movementRadius: 0.001
+    baseLocation: { lat: -1.4450, lng: 36.8850 }, // Southern border
+    movementRadius: 0.05 
   }
 ];
 
 // Simulation parameters
-const SIMULATION_INTERVAL = 10000; // 10 seconds between data points
-const MAX_ITERATIONS = 100; // Run for 100 iterations (can be infinite in production)
+const SIMULATION_INTERVAL = 3000; // 10 seconds between data points
+const MAX_ITERATIONS = Infinity; // Run for 100 iterations (can be infinite in production)
 
 // Generate random number in range
 const randomInRange = (min, max) => {
