@@ -5,6 +5,7 @@ import Navbar from '../shared/Navbar';
 import authService from '../../services/auth';
 import api from '../../services/api';
 import IoTDataViewer from './IoTDataViewer';
+import { useNavigate } from 'react-router-dom';
 
 const AdminDashboard = () => {
   const user = authService.getCurrentUser();
@@ -15,6 +16,7 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   // New State for handling button loading status
   const [processingId, setProcessingId] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchDashboardData();
@@ -305,20 +307,28 @@ const AdminDashboard = () => {
           </div>
         </div>
         <IoTDataViewer />
+        
+          
 
         {/* Quick Actions */}
         <div className="bg-white rounded-lg shadow p-6 mt-8">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors">
+            <button 
+              onClick={() => navigate('/admin/users')} 
+              className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors">
               <Users className="h-8 w-8 text-gray-400 mx-auto mb-2" />
               <p className="text-sm font-medium text-gray-700">Manage Users</p>
             </button>
-            <button className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors">
+            <button 
+              onClick={() => navigate('/admin/species')}
+              className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors">
               <Layers className="h-8 w-8 text-gray-400 mx-auto mb-2" />
               <p className="text-sm font-medium text-gray-700">Manage Species</p>
             </button>
-            <button className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors">
+            <button 
+              onClick={() => navigate('/reports')}
+              className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors">
               <TrendingUp className="h-8 w-8 text-gray-400 mx-auto mb-2" />
               <p className="text-sm font-medium text-gray-700">View Reports</p>
             </button>
