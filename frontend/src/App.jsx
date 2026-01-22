@@ -49,6 +49,24 @@ function AppContent({ isOnline, pendingSync }) {
             <AdminDashboard />
           </ProtectedRoute>
         } />
+
+        <Route path="/admin/users" element={
+          <ProtectedRoute requiredRole="admin">
+            <div className="p-8"><h1>User Management (Coming Soon)</h1></div>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/admin/species" element={
+          <ProtectedRoute requiredRole="admin">
+            <div className="p-8"><h1>Species Management (Coming Soon)</h1></div>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/reports" element={
+          <ProtectedRoute>
+            <div className="p-8"><h1>System Reports Page</h1></div>
+          </ProtectedRoute>
+        } />
         
         <Route path="/ranger" element={
           <ProtectedRoute requiredRole="ranger">
