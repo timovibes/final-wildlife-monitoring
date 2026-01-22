@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Layers, Eye, AlertTriangle, Activity, TrendingUp } from 'lucide-react';
+// Added CheckCircle to imports
+import { Users, Layers, Eye, AlertTriangle, Activity, TrendingUp, CheckCircle } from 'lucide-react';
 import Navbar from '../shared/Navbar';
 import authService from '../../services/auth';
 import api from '../../services/api';
@@ -12,6 +13,8 @@ const AdminDashboard = () => {
   const [recentIncidents, setRecentIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  // New State for handling button loading status
+  const [processingId, setProcessingId] = useState(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -38,6 +41,26 @@ const AdminDashboard = () => {
       console.error('Failed to fetch dashboard data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // New Feature: Function to verify a sighting
+  const handleVerifySighting = async (id) => {
+    try {
+      setProcessingId(id);
+      const response = await api.put(`/sightings/${id}/verify`);
+      
+      if (response.data.success) {
+        // Update local state to reflect change immediately
+        setRecentSightings(prev => 
+          prev.map(s => s.id === id ? { ...s, verified: response.data.data.sighting.verified } : s)
+        );
+      }
+    } catch (error) {
+      console.error('Verification failed:', error);
+      alert('Failed to verify sighting.');
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -195,7 +218,8 @@ const AdminDashboard = () => {
                 ) : (
                   recentSightings.map((sighting) => (
                     <div key={sighting.id} className="bg-gray-50 p-4 rounded-lg">
-                      <div className="flex justify-between items-start">
+                      {/* Changed items-start to items-center to align button */}
+                      <div className="flex justify-between items-center">
                         <div>
                           <h4 className="font-semibold text-gray-900">
                             {sighting.species?.commonName}
@@ -207,15 +231,31 @@ const AdminDashboard = () => {
                             Observed by: {sighting.observer?.firstName} {sighting.observer?.lastName}
                           </p>
                         </div>
-                        <span
-                          className={`px-2 py-1 text-xs rounded-full ${
-                            sighting.verified
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}
-                        >
-                          {sighting.verified ? 'Verified' : 'Pending'}
-                        </span>
+                        
+                        {/* New Wrapper for Badge and Action Button */}
+                        <div className="flex items-center space-x-4">
+                            <span
+                            className={`px-2 py-1 text-xs rounded-full ${
+                                sighting.verified
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}
+                            >
+                            {sighting.verified ? 'Verified' : 'Pending'}
+                            </span>
+
+                            {/* New Feature: Verify Button */}
+                            {!sighting.verified && (
+                                <button
+                                    onClick={() => handleVerifySighting(sighting.id)}
+                                    disabled={processingId === sighting.id}
+                                    className="flex items-center bg-green-600 text-white px-3 py-1 rounded text-xs font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+                                >
+                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                    {processingId === sighting.id ? 'Processing...' : 'Verify'}
+                                </button>
+                            )}
+                        </div>
                       </div>
                     </div>
                   ))
