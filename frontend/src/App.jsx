@@ -11,6 +11,7 @@ import Navbar from './components/shared/Navbar'; // Imported from your App.js lo
 import syncManager from './services/syncManager';
 import authService from './services/auth';
 import UserManagement from './components/admin/UserManagement';
+import Species from './components/admin/SpeciesManagement';
 
 /**
  * AppContent handles the layout logic like conditional Navbars
@@ -59,7 +60,7 @@ function AppContent({ isOnline, pendingSync }) {
 
         <Route path="/admin/species" element={
           <ProtectedRoute requiredRole="admin">
-            <div className="p-8"><h1>Species Management (Coming Soon)</h1></div>
+            <Species />
           </ProtectedRoute>
         } />
 
