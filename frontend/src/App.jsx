@@ -10,6 +10,7 @@ import OfflineIndicator from './components/shared/OfflineIndicator';
 import Navbar from './components/shared/Navbar'; // Imported from your App.js logic
 import syncManager from './services/syncManager';
 import authService from './services/auth';
+import UserManagement from './components/admin/UserManagement';
 
 /**
  * AppContent handles the layout logic like conditional Navbars
@@ -52,7 +53,7 @@ function AppContent({ isOnline, pendingSync }) {
 
         <Route path="/admin/users" element={
           <ProtectedRoute requiredRole="admin">
-            <div className="p-8"><h1>User Management (Coming Soon)</h1></div>
+            <UserManagement />
           </ProtectedRoute>
         } />
 
