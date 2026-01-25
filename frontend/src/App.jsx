@@ -12,6 +12,7 @@ import syncManager from './services/syncManager';
 import authService from './services/auth';
 import UserManagement from './components/admin/UserManagement';
 import Species from './components/admin/SpeciesManagement';
+import Reports from './components/admin/Reports';
 
 /**
  * AppContent handles the layout logic like conditional Navbars
@@ -35,56 +36,59 @@ function AppContent({ isOnline, pendingSync }) {
       {!isAuthPage && !isDashboardPage && isAuthenticated && <Navbar user={user} />}
       
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        
-        {/* Dynamic Redirect: Sends user to the correct dashboard based on tab-specific session */}
-        <Route path="/dashboard" element={
-          <ProtectedRoute>
-            <DashboardRedirect />
-          </ProtectedRoute>
-        } />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      
+      {/* Dynamic Redirect: Primary entry point for logged-in users */}
+      <Route path="/dashboard" element={
+        <ProtectedRoute>
+          <DashboardRedirect />
+        </ProtectedRoute>
+      } />
 
-        {/* Individual Protected Routes */}
-        <Route path="/admin" element={
-          <ProtectedRoute requiredRole="admin">
-            <AdminDashboard />
-          </ProtectedRoute>
-        } />
+      {/* Admin Protected Routes */}
+      <Route path="/admin" element={
+        <ProtectedRoute requiredRole="admin">
+          <AdminDashboard />
+        </ProtectedRoute>
+      } />
 
-        <Route path="/admin/users" element={
-          <ProtectedRoute requiredRole="admin">
-            <UserManagement />
-          </ProtectedRoute>
-        } />
+      <Route path="/admin/users" element={
+        <ProtectedRoute requiredRole="admin">
+          <UserManagement />
+        </ProtectedRoute>
+      } />
 
-        <Route path="/admin/species" element={
-          <ProtectedRoute requiredRole="admin">
-            <Species />
-          </ProtectedRoute>
-        } />
+      <Route path="/admin/species" element={
+        <ProtectedRoute requiredRole="admin">
+          <Species />
+        </ProtectedRoute>
+      } />
 
-        <Route path="/reports" element={
-          <ProtectedRoute>
-            <div className="p-8"><h1>System Reports Page</h1></div>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/ranger" element={
-          <ProtectedRoute requiredRole="ranger">
-            <RangerDashboard />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/researcher" element={
-          <ProtectedRoute requiredRole="researcher">
-            <ResearcherDashboard />
-          </ProtectedRoute>
-        } />
+      {/* Analytics & Reporting Route */}
+      <Route path="/reports" element={
+        <ProtectedRoute>
+          <Reports />
+        </ProtectedRoute>
+      } />
+      
+      {/* Role-Specific Dashboards */}
+      <Route path="/ranger" element={
+        <ProtectedRoute requiredRole="ranger">
+          <RangerDashboard />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/researcher" element={
+        <ProtectedRoute requiredRole="researcher">
+          <ResearcherDashboard />
+        </ProtectedRoute>
+      } />
 
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      {/* Navigation Guardrails */}
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
     </div>
   );
 }
