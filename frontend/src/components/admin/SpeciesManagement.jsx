@@ -8,6 +8,17 @@ const SpeciesManagement = () => {
   const [species, setSpecies] = useState([]);
   const [loading, setLoading] = useState(true);
   const currentUser = authService.getCurrentUser();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [formData, setFormData] = useState({
+    commonName: '',
+    scientificName: '',
+    category: 'Mammal',
+    conservationStatus: 'LC',
+    habitat: '',
+    description: '',
+    population: 0
+  });
 
   useEffect(() => {
     fetchSpecies();
@@ -40,13 +51,44 @@ const SpeciesManagement = () => {
   }
 };
 
+const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingId) {
+        // EDIT MODE
+        const response = await api.put(`/species/${editingId}`, formData);
+        setSpecies(prev => prev.map(s => s.id === editingId ? response.data.data.species : s));
+      } else {
+        // ADD MODE
+        const response = await api.post('/species', formData);
+        setSpecies(prev => [...prev, response.data.data.species]);
+      }
+      resetForm();
+    } catch (error) {
+      alert(error.response?.data?.message || "Operation failed");
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({ commonName: '', scientificName: '', category: 'Mammal', conservationStatus: 'LC', habitat: '', description: '', population: 0 });
+    setEditingId(null);
+    setIsModalOpen(false);
+  };
+
+  const handleEditClick = (item) => {
+    setFormData(item);
+    setEditingId(item.id);
+    setIsModalOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar user={currentUser} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Species Management</h1>
-          <button className="flex items-center bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+          <button onClick={() => {resetForm(); setIsModalOpen(true); }}
+          className="flex items-center bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
             <Plus className="h-5 w-5 mr-2" />
             Add New Species
           </button>
@@ -77,7 +119,8 @@ const SpeciesManagement = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button className="text-blue-600 hover:text-blue-900 mr-4">
+                    <button onClick={() => handleEditClick(item)}
+                    className="text-blue-600 hover:text-blue-900 mr-4">
                       <Edit2 className="h-4 w-4" />
                     </button>
                     <button 
@@ -93,8 +136,88 @@ const SpeciesManagement = () => {
           </table>
         </div>
       </div>
+
+      {/* --- MODAL OVERLAY --- */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-900">
+                {editingId ? 'Edit Species Details' : 'Register New Species'}
+              </h2>
+              <button onClick={resetForm} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Common Name</label>
+                  <input 
+                    type="text" required className="w-full border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+                    value={formData.commonName} onChange={(e) => setFormData({...formData, commonName: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Scientific Name</label>
+                  <input 
+                    type="text" required className="w-full border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+                    value={formData.scientificName} onChange={(e) => setFormData({...formData, scientificName: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <select 
+                    className="w-full border border-gray-300 p-2 rounded-lg" value={formData.category}
+                    onChange={(e) => setFormData({...formData, category: e.target.value})}
+                  >
+                    {['Mammal', 'Bird', 'Reptile', 'Amphibian', 'Fish', 'Invertebrate', 'Plant'].map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Conservation Status</label>
+                  <select 
+                    className="w-full border border-gray-300 p-2 rounded-lg" value={formData.conservationStatus}
+                    onChange={(e) => setFormData({...formData, conservationStatus: e.target.value})}
+                  >
+                    {['LC', 'NT', 'VU', 'EN', 'CR', 'EW', 'EX'].map(status => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea 
+                  rows="3" className="w-full border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+                  value={formData.description || ''} onChange={(e) => setFormData({...formData, description: e.target.value})}
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4 border-t">
+                <button 
+                  type="button" onClick={resetForm}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                >
+                  {editingId ? 'Update Species' : 'Save Species'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
+
 
 export default SpeciesManagement;
