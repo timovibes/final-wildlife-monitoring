@@ -2,7 +2,7 @@
 
 A comprehensive, full-stack application designed to track wildlife sightings, manage conservation data, and report critical incidents in protected areas and conservation zones.
 
-## 🌍 Overview
+## Overview
 
 The Wildlife & Biodiversity Monitoring System is a modern web-based platform that enables rangers, researchers, and administrators to:
 
@@ -12,7 +12,7 @@ The Wildlife & Biodiversity Monitoring System is a modern web-based platform tha
 - **Real-Time Data Ingestion**: Simulate and validate high-frequency IoT sensor data from GPS collars and camera traps
 - **Access Control**: Role-based dashboard for Admins, Rangers, and Researchers with appropriate permissions
 
-## ✨ Key Features
+## Key Features
 
 ### Wildlife Observation & Sighting Management
 - **Geospatial Tracking**: Record precise latitude/longitude coordinates for wildlife locations
@@ -43,7 +43,7 @@ The Wildlife & Biodiversity Monitoring System is a modern web-based platform tha
 - **Mobile Optimized**: Responsive design for tablet and mobile devices in remote areas
 - **Fast Performance**: Optimized asset loading and cache management
 
-## 🏗️ Architecture
+## Architecture
 
 ### Tech Stack
 
@@ -92,7 +92,7 @@ final-wildlife-monitoring/
 └── README.md                # This file
 ```
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -138,7 +138,7 @@ The application will be available at:
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:5000/api
 
-## 🔐 Authentication & Authorization
+## Authentication & Authorization
 
 The system implements role-based access control (RBAC) with three primary roles:
 
@@ -160,7 +160,7 @@ The system implements role-based access control (RBAC) with three primary roles:
 - Read-only access to sightings and incidents
 - Species database contributions (pending approval)
 
-## 📊 Data Models
+## Data Models
 
 ### Sighting
 Captures wildlife observations with geographic precision and behavior context:
@@ -197,7 +197,7 @@ Simulates real sensor device data:
 - Battery and motion metrics
 - Data quality indicators
 
-## 🧪 Testing & Data Generation
+## Testing & Data Generation
 
 The project includes a comprehensive seed file with sample data:
 
@@ -228,7 +228,7 @@ This service:
 - Tests system performance under production-like loads
 - Validates analytics pipeline accuracy
 
-## 🌐 API Documentation
+## API Documentation
 
 ### Health Check
 ```
@@ -269,7 +269,7 @@ POST   /api/auth/login           # User login
 POST   /api/auth/logout          # User logout
 ```
 
-## 🔄 Workflow Examples
+## Workflow Examples
 
 ### Recording a Wildlife Sighting
 1. Ranger logs into dashboard
@@ -290,7 +290,7 @@ POST   /api/auth/logout          # User logout
 6. Incident status tracked through resolution workflow
 7. Analytics track incident patterns and hotspots
 
-## 📈 Analytics & Insights
+## Analytics & Insights
 
 The system supports analysis through:
 - Species population trend analysis
@@ -300,7 +300,7 @@ The system supports analysis through:
 - IoT device health monitoring
 - Behavioral pattern detection
 
-## 🛠️ Development
+## Development
 
 ### Environment Variables
 
@@ -331,7 +331,7 @@ The project follows these standards:
 - Component composition patterns
 - Proper error handling and validation
 
-## 📝 Contributing
+## Contributing
 
 Contributions are welcome! Please:
 
@@ -341,28 +341,28 @@ Contributions are welcome! Please:
 4. Push to the branch
 5. Open a Pull Request
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 👥 Author
+## Author
 
 Created by [timovibes](https://github.com/timovibes)
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - IUCN Red List for conservation status classifications
 - Wildlife conservation organizations for inspiring feature set
 - Open-source community for excellent tools and libraries
 
-## 📞 Support
+## Support
 
 For questions or issues:
 - Open a GitHub Issue for bug reports
 - Contact the development team for feature requests
 - Check existing documentation for common questions
 
-## 🚦 Project Status
+## Project Status
 
 - **Status**: Active Development
 - **Last Updated**: January 2026
