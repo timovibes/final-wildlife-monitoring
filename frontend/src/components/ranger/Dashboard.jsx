@@ -270,17 +270,6 @@ const RangerDashboard = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Notes</label>
-                <textarea
-                  rows="3"
-                  value={sightingForm.notes}
-                  onChange={(e) => setSightingForm({ ...sightingForm, notes: e.target.value })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  placeholder="Additional observations..."
-                />
-              </div>
-
               <div className="flex space-x-4">
                 <button
                   type="submit"
