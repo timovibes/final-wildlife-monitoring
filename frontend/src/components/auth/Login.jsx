@@ -117,15 +117,6 @@ const Login = () => {
             </Link>
           </div>
         </form>
-
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-sm font-semibold text-blue-900 mb-2">Demo Accounts:</p>
-          <div className="space-y-1 text-xs text-blue-800">
-            <p><strong>Admin:</strong> admin@wildlife.com / Admin123!</p>
-            <p><strong>Ranger:</strong> ranger@wildlife.com / Ranger123!</p>
-            <p><strong>Researcher:</strong> researcher@wildlife.com / Researcher123!</p>
-          </div>
-        </div>
       </div>
     </div>
   );
