@@ -44,4 +44,11 @@ api.interceptors.response.use(
   }
 );
 
+// Add these to your api service
+export const speciesApi = {
+  create: (data) => api.post('/species', data),
+  update: (id, data) => api.put(`/species/${id}`, data),
+  delete: (id) => api.delete(`/species/${id}`),
+};
+
 export default api;
