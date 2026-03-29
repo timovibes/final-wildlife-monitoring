@@ -1,334 +1,704 @@
+// const axios = require('axios');
+// require('dotenv').config();
+
+// /**
+//  * IoT Sensor Simulation Service
+//  * 
+//  * Purpose: NOT a demo feature - this is a functional stress test layer
+//  * 
+//  * Rationale:
+//  * - Simulates production IoT data patterns (GPS collars, camera traps)
+//  * - Validates system's ability to handle high-frequency data ingestion
+//  * - Tests reporting/analytics modules under realistic load
+//  * - Provides foundation for future real IoT device integration
+//  * 
+//  * This service generates realistic wildlife tracking data and POSTs it
+//  * to the backend API at configurable intervals, mimicking real IoT sensors
+//  * in the field.
+//  * 
+//  * Usage: node services/sensorSimulation.js
+//  */
+
+// const API_URL = process.env.API_URL || 'http://localhost:5000/api';
+
+// const SENSORS = [
+//   // --- GPS COLLARS (The Movers) ---
+//   { id: 'LION_01', deviceType: 'GPS Collar', speciesId: null, baseLocation: { lat: -1.37333, lng: 36.85889 }, movementRadius: 0.04, behaviorProfile: 'predator' },
+//   { id: 'LION_02', deviceType: 'GPS Collar', speciesId: null, baseLocation: { lat: -1.38500, lng: 36.88000 }, movementRadius: 0.03, behaviorProfile: 'predator' },
+//   { id: 'RHINO_01', deviceType: 'GPS Collar', speciesId: null, baseLocation: { lat: -1.36000, lng: 36.82000 }, movementRadius: 0.02, behaviorProfile: 'grazer' },
+//   { id: 'ZEBRA_GRP_A', deviceType: 'GPS Collar', speciesId: null, baseLocation: { lat: -1.41000, lng: 36.90000 }, movementRadius: 0.05, behaviorProfile: 'herd' },
+//   { id: 'GIRAFFE_01', deviceType: 'GPS Collar', speciesId: null, baseLocation: { lat: -1.35000, lng: 36.78000 }, movementRadius: 0.03, behaviorProfile: 'browser' },
+
+//   // --- CAMERA TRAPS (Fixed Locations) ---
+//   { id: 'CAM_WEST_GATE', deviceType: 'Camera Trap', speciesId: null, baseLocation: { lat: -1.33500, lng: 36.77000 }, movementRadius: 0.0005 },
+//   { id: 'CAM_IVORY_BURN', deviceType: 'Camera Trap', speciesId: null, baseLocation: { lat: -1.35800, lng: 36.78500 }, movementRadius: 0.0005 },
+//   { id: 'CAM_HIPPO_POOL', deviceType: 'Camera Trap', speciesId: null, baseLocation: { lat: -1.39500, lng: 36.84500 }, movementRadius: 0.0005 },
+
+//   // --- FIXED STATIONS ---
+//   { id: 'MET_STATION_HQ', deviceType: 'Weather Station', speciesId: null, baseLocation: { lat: -1.37333, lng: 36.85889 }, movementRadius: 0 },
+//   { id: 'MOTION_PERIM_01', deviceType: 'Motion Sensor', speciesId: null, baseLocation: { lat: -1.32500, lng: 36.86000 }, movementRadius: 0.001 }
+// ];
+
+// // Simulation parameters
+// const SIMULATION_INTERVAL = 3000; // 3 seconds between data points
+// const MAX_ITERATIONS = Infinity; // Run for specified iterations (can be infinite)
+
+// // Time-of-day tracking for circadian patterns
+// const getTimeOfDay = () => {
+//   const hour = new Date().getHours();
+//   if (hour >= 6 && hour < 12) return 'morning';
+//   if (hour >= 12 && hour < 18) return 'afternoon';
+//   if (hour >= 18 && hour < 22) return 'evening';
+//   return 'night';
+// };
+
+// // Generate random number in range
+// const randomInRange = (min, max) => {
+//   return Math.random() * (max - min) + min;
+// };
+
+// // Generate random boolean with probability
+// const randomBoolean = (probability = 0.5) => {
+//   return Math.random() < probability;
+// };
+
+// // Simulate realistic battery drain
+// const batteryLevels = {};
+// const updateBatteryLevel = (sensorId, deviceType) => {
+//   if (!batteryLevels[sensorId]) {
+//     batteryLevels[sensorId] = randomInRange(70, 100);
+//   }
+  
+//   // Realistic drain rates per iteration
+//   const drainRates = {
+//     'GPS Collar': 0.01,       // ~0.01% per reading
+//     'Camera Trap': 0.005,     // Slower drain
+//     'Motion Sensor': 0.003,
+//     'Weather Station': 0.008
+//   };
+  
+//   batteryLevels[sensorId] -= drainRates[deviceType] || 0.01;
+  
+//   // Prevent negative battery
+//   if (batteryLevels[sensorId] < 5) {
+//     batteryLevels[sensorId] = 5; // Critical battery level
+//   }
+  
+//   return Math.floor(batteryLevels[sensorId]);
+// };
+
+// // Store movement state for realistic animal behavior
+// const animalStates = {};
+// const lastKnownPositions = {};
+
+// const initializeAnimalState = (sensorId) => {
+//   if (!animalStates[sensorId]) {
+//     animalStates[sensorId] = {
+//       isResting: false,
+//       restDuration: 0,
+//       activityLevel: 1.0,
+//       heading: Math.random() * 360, // Initial random heading
+//       consecutiveRestChecks: 0
+//     };
+//   }
+// };
+
+// // Behavior profiles for different animal types
+// const getBehaviorModifiers = (profile, timeOfDay) => {
+//   const profiles = {
+//     predator: {
+//       morning: { activity: 0.6, restProb: 0.3, speed: 0.8 },
+//       afternoon: { activity: 0.3, restProb: 0.6, speed: 0.4 },
+//       evening: { activity: 0.9, restProb: 0.1, speed: 1.2 },
+//       night: { activity: 1.0, restProb: 0.2, speed: 1.0 }
+//     },
+//     grazer: {
+//       morning: { activity: 1.0, restProb: 0.2, speed: 0.7 },
+//       afternoon: { activity: 0.5, restProb: 0.5, speed: 0.3 },
+//       evening: { activity: 0.8, restProb: 0.3, speed: 0.6 },
+//       night: { activity: 0.4, restProb: 0.6, speed: 0.2 }
+//     },
+//     herd: {
+//       morning: { activity: 0.9, restProb: 0.2, speed: 0.8 },
+//       afternoon: { activity: 0.6, restProb: 0.4, speed: 0.5 },
+//       evening: { activity: 0.8, restProb: 0.3, speed: 0.7 },
+//       night: { activity: 0.3, restProb: 0.7, speed: 0.2 }
+//     },
+//     browser: {
+//       morning: { activity: 0.8, restProb: 0.3, speed: 0.6 },
+//       afternoon: { activity: 0.7, restProb: 0.4, speed: 0.5 },
+//       evening: { activity: 0.6, restProb: 0.4, speed: 0.5 },
+//       night: { activity: 0.5, restProb: 0.5, speed: 0.3 }
+//     }
+//   };
+  
+//   return profiles[profile]?.[timeOfDay] || { activity: 0.7, restProb: 0.3, speed: 0.7 };
+// };
+
+// // Simulate GPS movement with realistic animal behavior
+// const simulateMovement = (sensor) => {
+//   initializeAnimalState(sensor.id);
+  
+//   const state = animalStates[sensor.id];
+//   const currentPos = lastKnownPositions[sensor.id] || { ...sensor.baseLocation };
+//   const timeOfDay = getTimeOfDay();
+//   const behavior = getBehaviorModifiers(sensor.behaviorProfile, timeOfDay);
+  
+//   // Check if animal should rest
+//   if (!state.isResting && randomBoolean(behavior.restProb)) {
+//     state.isResting = true;
+//     state.restDuration = Math.floor(randomInRange(3, 10)); // Rest for 3-10 iterations
+//   }
+  
+//   // Handle resting state
+//   if (state.isResting) {
+//     state.restDuration--;
+//     if (state.restDuration <= 0) {
+//       state.isResting = false;
+//     }
+    
+//     // Minimal movement while resting (GPS drift)
+//     const drift = 0.00005;
+//     return {
+//       latitude: currentPos.lat + (Math.random() - 0.5) * drift,
+//       longitude: currentPos.lng + (Math.random() - 0.5) * drift,
+//       speed: 0,
+//       isResting: true
+//     };
+//   }
+  
+//   // Active movement with momentum (animals don't change direction randomly)
+//   const baseStepSize = 0.0005 * behavior.speed * behavior.activity;
+  
+//   // Gradual heading changes (realistic turning)
+//   state.heading += (Math.random() - 0.5) * 30; // Max 30 degree turn per iteration
+//   state.heading = state.heading % 360;
+  
+//   const headingRad = (state.heading * Math.PI) / 180;
+  
+//   // Calculate new position based on heading
+//   let nextLat = currentPos.lat + Math.cos(headingRad) * baseStepSize;
+//   let nextLng = currentPos.lng + Math.sin(headingRad) * baseStepSize;
+  
+//   // Geofencing: keep animal within territory
+//   const distLat = nextLat - sensor.baseLocation.lat;
+//   const distLng = nextLng - sensor.baseLocation.lng;
+//   const distance = Math.sqrt(distLat * distLat + distLng * distLng);
+  
+//   if (distance > sensor.movementRadius) {
+//     // Turn back toward center when hitting boundary
+//     const angleToCenter = Math.atan2(
+//       sensor.baseLocation.lng - currentPos.lng,
+//       sensor.baseLocation.lat - currentPos.lat
+//     );
+//     state.heading = (angleToCenter * 180) / Math.PI;
+    
+//     // Pull back slightly
+//     nextLat -= distLat * 0.2;
+//     nextLng -= distLng * 0.2;
+//   }
+  
+//   const newPos = { lat: nextLat, lng: nextLng };
+//   lastKnownPositions[sensor.id] = newPos;
+  
+//   // Calculate speed based on distance moved
+//   const distMoved = Math.sqrt(
+//     Math.pow(nextLat - currentPos.lat, 2) + 
+//     Math.pow(nextLng - currentPos.lng, 2)
+//   );
+//   const speedKmh = (distMoved * 111) * (3600 / (SIMULATION_INTERVAL / 1000)); // Rough conversion
+  
+//   return { 
+//     latitude: newPos.lat, 
+//     longitude: newPos.lng,
+//     speed: speedKmh,
+//     isResting: false
+//   };
+// };
+
+// // Track environmental conditions
+// let weatherState = {
+//   baseTemp: 22,
+//   humidity: 50,
+//   windSpeed: 5,
+//   rainfall: 0,
+//   lastUpdate: Date.now()
+// };
+
+// const updateWeatherState = () => {
+//   const now = Date.now();
+//   const hoursSinceUpdate = (now - weatherState.lastUpdate) / (1000 * 60 * 60);
+  
+//   if (hoursSinceUpdate > 0.5) { // Update every 30 minutes
+//     // Gradual temperature change
+//     weatherState.baseTemp += (Math.random() - 0.5) * 2;
+//     weatherState.baseTemp = Math.max(15, Math.min(35, weatherState.baseTemp));
+    
+//     // Humidity changes
+//     weatherState.humidity += (Math.random() - 0.5) * 10;
+//     weatherState.humidity = Math.max(20, Math.min(90, weatherState.humidity));
+    
+//     // Wind fluctuations
+//     weatherState.windSpeed += (Math.random() - 0.5) * 5;
+//     weatherState.windSpeed = Math.max(0, Math.min(25, weatherState.windSpeed));
+    
+//     // Rainfall (occasional)
+//     if (Math.random() < 0.1) {
+//       weatherState.rainfall = randomInRange(0, 8);
+//     } else {
+//       weatherState.rainfall = Math.max(0, weatherState.rainfall - 0.5);
+//     }
+    
+//     weatherState.lastUpdate = now;
+//   }
+  
+//   return weatherState;
+// };
+
+// // Generate sensor data payload
+// const generateSensorData = (sensor) => {
+//   const movement = simulateMovement(sensor);
+//   const weather = updateWeatherState();
+  
+//   const payload = {
+//     sensorId: sensor.id,
+//     deviceType: sensor.deviceType,
+//     speciesId: sensor.speciesId,
+//     latitude: parseFloat(movement.latitude.toFixed(8)),
+//     longitude: parseFloat(movement.longitude.toFixed(8)),
+//     timestamp: new Date().toISOString()
+//   };
+
+//   // Device-specific data with realistic correlations
+//   switch (sensor.deviceType) {
+//     case 'GPS Collar':
+//       const isActive = !movement.isResting;
+//       const exertion = movement.speed > 5 ? 1.2 : 1.0;
+      
+//       payload.temperature = parseFloat((weather.baseTemp + randomInRange(-1, 2)).toFixed(2));
+//       payload.batteryLevel = updateBatteryLevel(sensor.id, sensor.deviceType);
+//       payload.heartbeat = Math.floor(
+//         randomInRange(60, 80) * (isActive ? exertion : 0.7)
+//       ); // Lower heart rate when resting
+//       payload.altitude = parseFloat((1650 + randomInRange(-10, 20)).toFixed(2));
+//       payload.speed = parseFloat(movement.speed.toFixed(2));
+//       payload.motion = isActive;
+//       break;
+      
+//     case 'Camera Trap':
+//       const timeOfDay = getTimeOfDay();
+//       const detectionProb = timeOfDay === 'morning' || timeOfDay === 'evening' ? 0.4 : 0.2;
+      
+//       payload.motion = randomBoolean(detectionProb);
+//       payload.batteryLevel = updateBatteryLevel(sensor.id, sensor.deviceType);
+//       payload.temperature = parseFloat((weather.baseTemp + randomInRange(-0.5, 0.5)).toFixed(2));
+      
+//       // Add image capture count when motion detected
+//       if (payload.motion) {
+//         payload.imagesCaptured = Math.floor(randomInRange(1, 5));
+//       }
+//       break;
+      
+//     case 'Motion Sensor':
+//       payload.motion = randomBoolean(0.35);
+//       payload.batteryLevel = updateBatteryLevel(sensor.id, sensor.deviceType);
+//       payload.signalStrength = Math.floor(randomInRange(60, 100));
+//       break;
+      
+//     case 'Weather Station':
+//       payload.temperature = parseFloat(weather.baseTemp.toFixed(2));
+//       payload.metadata = {
+//         humidity: parseFloat(weather.humidity.toFixed(2)),
+//         windSpeed: parseFloat(weather.windSpeed.toFixed(2)),
+//         rainfall: parseFloat(weather.rainfall.toFixed(2)),
+//         pressure: parseFloat(randomInRange(1010, 1020).toFixed(2)),
+//         uvIndex: Math.max(0, Math.floor(randomInRange(0, 11) * (getTimeOfDay() === 'afternoon' ? 1.2 : 0.8)))
+//       };
+//       break;
+//   }
+
+//   return payload;
+// };
+
+// // Send data to API with retry logic
+// const sendSensorData = async (payload, retries = 2) => {
+//   try {
+//     const response = await axios.post(`${API_URL}/iot/data`, payload, {
+//       headers: { 'Content-Type': 'application/json' },
+//       timeout: 5000
+//     });
+    
+//     console.log(`✓ [${new Date().toISOString()}] ${payload.sensorId} - Data sent successfully`);
+//     return response.data;
+//   } catch (error) {
+//     if (retries > 0 && error.code !== 'ECONNREFUSED') {
+//       console.log(`⟳ Retrying ${payload.sensorId}... (${retries} attempts left)`);
+//       await new Promise(resolve => setTimeout(resolve, 1000));
+//       return sendSensorData(payload, retries - 1);
+//     }
+    
+//     console.error(`✗ [${new Date().toISOString()}] ${payload.sensorId} - Error:`, error.message);
+//     return null;
+//   }
+// };
+
+// // Main simulation loop
+// const runSimulation = async () => {
+//   console.log('═══════════════════════════════════════════════════════════');
+//   console.log('  IoT SENSOR SIMULATION SERVICE');
+//   console.log('═══════════════════════════════════════════════════════════');
+//   console.log(`  API Endpoint: ${API_URL}/iot/data`);
+//   console.log(`  Active Sensors: ${SENSORS.length}`);
+//   console.log(`  Interval: ${SIMULATION_INTERVAL}ms`);
+//   console.log(`  Max Iterations: ${MAX_ITERATIONS}`);
+//   console.log('═══════════════════════════════════════════════════════════\n');
+
+//   let iteration = 0;
+//   let successCount = 0;
+//   let failCount = 0;
+
+//   const simulationTimer = setInterval(async () => {
+//     iteration++;
+    
+//     console.log(`\n--- Iteration ${iteration}/${MAX_ITERATIONS} [${getTimeOfDay().toUpperCase()}] ---`);
+    
+//     // Generate and send data for all sensors
+//     const promises = SENSORS.map(sensor => {
+//       const payload = generateSensorData(sensor);
+//       return sendSensorData(payload);
+//     });
+
+//     const results = await Promise.all(promises);
+//     results.forEach(r => r ? successCount++ : failCount++);
+
+//     // Stop after max iterations
+//     if (iteration >= MAX_ITERATIONS) {
+//       clearInterval(simulationTimer);
+//       console.log('\n═══════════════════════════════════════════════════════════');
+//       console.log('  SIMULATION COMPLETE');
+//       console.log(`  Total data points sent: ${successCount}`);
+//       console.log(`  Failed transmissions: ${failCount}`);
+//       console.log(`  Success rate: ${((successCount / (successCount + failCount)) * 100).toFixed(2)}%`);
+//       console.log('═══════════════════════════════════════════════════════════\n');
+//       process.exit(0);
+//     }
+//   }, SIMULATION_INTERVAL);
+// };
+
+// // Handle graceful shutdown
+// process.on('SIGINT', () => {
+//   console.log('\n\nSimulation stopped by user');
+//   process.exit(0);
+// });
+
+// // Start simulation
+// console.log('Starting sensor simulation in 3 seconds...\n');
+// setTimeout(runSimulation, 3000);
+
 const axios = require('axios');
 require('dotenv').config();
 
 /**
  * IoT Sensor Simulation Service
- * 
+ *
  * Purpose: NOT a demo feature - this is a functional stress test layer
- * 
+ *
  * Rationale:
  * - Simulates production IoT data patterns (GPS collars, camera traps)
  * - Validates system's ability to handle high-frequency data ingestion
  * - Tests reporting/analytics modules under realistic load
  * - Provides foundation for future real IoT device integration
- * 
- * This service generates realistic wildlife tracking data and POSTs it
- * to the backend API at configurable intervals, mimicking real IoT sensors
- * in the field.
- * 
+ *
+ * Only GPS Collar sensors move. Camera traps, motion sensors, and weather
+ * stations are pinned to their fixed coordinates permanently.
+ *
+ * All animal movement is strictly constrained within the Nairobi National
+ * Park polygon using ray-casting point-in-polygon checks.
+ *
  * Usage: node services/sensorSimulation.js
  */
 
 const API_URL = process.env.API_URL || 'http://localhost:5000/api';
 
-const SENSORS = [
-  // --- GPS COLLARS (The Movers) ---
-  { id: 'LION_01', deviceType: 'GPS Collar', speciesId: null, baseLocation: { lat: -1.37333, lng: 36.85889 }, movementRadius: 0.04, behaviorProfile: 'predator' },
-  { id: 'LION_02', deviceType: 'GPS Collar', speciesId: null, baseLocation: { lat: -1.38500, lng: 36.88000 }, movementRadius: 0.03, behaviorProfile: 'predator' },
-  { id: 'RHINO_01', deviceType: 'GPS Collar', speciesId: null, baseLocation: { lat: -1.36000, lng: 36.82000 }, movementRadius: 0.02, behaviorProfile: 'grazer' },
-  { id: 'ZEBRA_GRP_A', deviceType: 'GPS Collar', speciesId: null, baseLocation: { lat: -1.41000, lng: 36.90000 }, movementRadius: 0.05, behaviorProfile: 'herd' },
-  { id: 'GIRAFFE_01', deviceType: 'GPS Collar', speciesId: null, baseLocation: { lat: -1.35000, lng: 36.78000 }, movementRadius: 0.03, behaviorProfile: 'browser' },
-
-  // --- CAMERA TRAPS (Fixed Locations) ---
-  { id: 'CAM_WEST_GATE', deviceType: 'Camera Trap', speciesId: null, baseLocation: { lat: -1.33500, lng: 36.77000 }, movementRadius: 0.0005 },
-  { id: 'CAM_IVORY_BURN', deviceType: 'Camera Trap', speciesId: null, baseLocation: { lat: -1.35800, lng: 36.78500 }, movementRadius: 0.0005 },
-  { id: 'CAM_HIPPO_POOL', deviceType: 'Camera Trap', speciesId: null, baseLocation: { lat: -1.39500, lng: 36.84500 }, movementRadius: 0.0005 },
-
-  // --- FIXED STATIONS ---
-  { id: 'MET_STATION_HQ', deviceType: 'Weather Station', speciesId: null, baseLocation: { lat: -1.37333, lng: 36.85889 }, movementRadius: 0 },
-  { id: 'MOTION_PERIM_01', deviceType: 'Motion Sensor', speciesId: null, baseLocation: { lat: -1.32500, lng: 36.86000 }, movementRadius: 0.001 }
+// ─── Nairobi National Park Boundary ────────────────────────────────────────
+const PARK_BOUNDARY = [
+  { lat: -1.3620042910581462, lng: 36.84142655837787 },
+  { lat: -1.3565652348842911, lng: 36.85717128769847 },
+  { lat: -1.371893452616081,  lng: 36.882560694142164 },
+  { lat: -1.39826434981521,   lng: 36.89006211014353 },
+  { lat: -1.3920012884311217, lng: 36.85395639578529 },
+  { lat: -1.35076904729797,   lng: 36.798790443246695 },
+  { lat: -1.3427099859278102, lng: 36.82310866216303 },
 ];
 
-// Simulation parameters
-const SIMULATION_INTERVAL = 3000; // 3 seconds between data points
-const MAX_ITERATIONS = Infinity; // Run for specified iterations (can be infinite)
+const PARK_CENTROID = PARK_BOUNDARY.reduce(
+  (acc, p) => ({ lat: acc.lat + p.lat / PARK_BOUNDARY.length, lng: acc.lng + p.lng / PARK_BOUNDARY.length }),
+  { lat: 0, lng: 0 }
+);
 
-// Time-of-day tracking for circadian patterns
+// ─── Point-in-polygon (ray casting) ────────────────────────────────────────
+const isInsidePolygon = (lat, lng, polygon) => {
+  let inside = false;
+  const n = polygon.length;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const xi = polygon[i].lat, yi = polygon[i].lng;
+    const xj = polygon[j].lat, yj = polygon[j].lng;
+    const intersect =
+      yi > lng !== yj > lng &&
+      lat < ((xj - xi) * (lng - yi)) / (yj - yi) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+};
+
+// ─── Clamp to park boundary ─────────────────────────────────────────────────
+const clampToPark = (proposedLat, proposedLng) => {
+  if (isInsidePolygon(proposedLat, proposedLng, PARK_BOUNDARY)) {
+    return { lat: proposedLat, lng: proposedLng };
+  }
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 16; i++) {
+    const mid = (lo + hi) / 2;
+    const midLat = proposedLat + (PARK_CENTROID.lat - proposedLat) * mid;
+    const midLng = proposedLng + (PARK_CENTROID.lng - proposedLng) * mid;
+    if (isInsidePolygon(midLat, midLng, PARK_BOUNDARY)) hi = mid;
+    else lo = mid;
+  }
+  return {
+    lat: proposedLat + (PARK_CENTROID.lat - proposedLat) * hi,
+    lng: proposedLng + (PARK_CENTROID.lng - proposedLng) * hi,
+  };
+};
+
+// ─── Sensor Definitions ─────────────────────────────────────────────────────
+// stepSize: 0  → fixed device, never moves
+// stepSize: >0 → GPS collar, moves every tick
+const SENSORS = [
+  // GPS COLLARS — movers
+  { id: 'LION_01',      deviceType: 'GPS Collar',     speciesId: null, baseLocation: { lat: -1.3700, lng: 36.8580 }, stepSize: 0.0006, behaviorProfile: 'predator' },
+  { id: 'LION_02',      deviceType: 'GPS Collar',     speciesId: null, baseLocation: { lat: -1.3820, lng: 36.8720 }, stepSize: 0.0006, behaviorProfile: 'predator' },
+  { id: 'RHINO_01',     deviceType: 'GPS Collar',     speciesId: null, baseLocation: { lat: -1.3650, lng: 36.8350 }, stepSize: 0.0003, behaviorProfile: 'grazer' },
+  { id: 'ZEBRA_GRP_A',  deviceType: 'GPS Collar',     speciesId: null, baseLocation: { lat: -1.3880, lng: 36.8650 }, stepSize: 0.0008, behaviorProfile: 'herd' },
+  { id: 'GIRAFFE_01',   deviceType: 'GPS Collar',     speciesId: null, baseLocation: { lat: -1.3600, lng: 36.8200 }, stepSize: 0.0005, behaviorProfile: 'browser' },
+
+  // CAMERA TRAPS — fixed
+  { id: 'CAM_WEST_GATE',   deviceType: 'Camera Trap',    speciesId: null, baseLocation: { lat: -1.3540, lng: 36.8100 }, stepSize: 0 },
+  { id: 'CAM_IVORY_BURN',  deviceType: 'Camera Trap',    speciesId: null, baseLocation: { lat: -1.3630, lng: 36.8200 }, stepSize: 0 },
+  { id: 'CAM_HIPPO_POOL',  deviceType: 'Camera Trap',    speciesId: null, baseLocation: { lat: -1.3870, lng: 36.8520 }, stepSize: 0 },
+
+  // FIXED STATIONS
+  { id: 'MET_STATION_HQ',  deviceType: 'Weather Station', speciesId: null, baseLocation: { lat: -1.3730, lng: 36.8590 }, stepSize: 0 },
+  { id: 'MOTION_PERIM_01', deviceType: 'Motion Sensor',   speciesId: null, baseLocation: { lat: -1.3500, lng: 36.8450 }, stepSize: 0 },
+];
+
+// ─── Simulation Parameters ───────────────────────────────────────────────────
+const SIMULATION_INTERVAL = 3000;
+const MAX_ITERATIONS = Infinity;
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 const getTimeOfDay = () => {
   const hour = new Date().getHours();
-  if (hour >= 6 && hour < 12) return 'morning';
+  if (hour >= 6  && hour < 12) return 'morning';
   if (hour >= 12 && hour < 18) return 'afternoon';
   if (hour >= 18 && hour < 22) return 'evening';
   return 'night';
 };
 
-// Generate random number in range
-const randomInRange = (min, max) => {
-  return Math.random() * (max - min) + min;
-};
+const randomInRange = (min, max) => Math.random() * (max - min) + min;
+const randomBoolean = (probability = 0.5) => Math.random() < probability;
 
-// Generate random boolean with probability
-const randomBoolean = (probability = 0.5) => {
-  return Math.random() < probability;
-};
-
-// Simulate realistic battery drain
+// ─── Battery ─────────────────────────────────────────────────────────────────
 const batteryLevels = {};
 const updateBatteryLevel = (sensorId, deviceType) => {
-  if (!batteryLevels[sensorId]) {
-    batteryLevels[sensorId] = randomInRange(70, 100);
-  }
-  
-  // Realistic drain rates per iteration
+  if (!batteryLevels[sensorId]) batteryLevels[sensorId] = randomInRange(70, 100);
   const drainRates = {
-    'GPS Collar': 0.01,       // ~0.01% per reading
-    'Camera Trap': 0.005,     // Slower drain
+    'GPS Collar': 0.01,
+    'Camera Trap': 0.005,
     'Motion Sensor': 0.003,
-    'Weather Station': 0.008
+    'Weather Station': 0.008,
   };
-  
   batteryLevels[sensorId] -= drainRates[deviceType] || 0.01;
-  
-  // Prevent negative battery
-  if (batteryLevels[sensorId] < 5) {
-    batteryLevels[sensorId] = 5; // Critical battery level
-  }
-  
+  if (batteryLevels[sensorId] < 5) batteryLevels[sensorId] = 5;
   return Math.floor(batteryLevels[sensorId]);
 };
 
-// Store movement state for realistic animal behavior
+// ─── Animal State (GPS collars only) ─────────────────────────────────────────
 const animalStates = {};
 const lastKnownPositions = {};
 
-const initializeAnimalState = (sensorId) => {
-  if (!animalStates[sensorId]) {
-    animalStates[sensorId] = {
+const initializeAnimalState = (sensor) => {
+  if (!animalStates[sensor.id]) {
+    animalStates[sensor.id] = {
       isResting: false,
       restDuration: 0,
-      activityLevel: 1.0,
-      heading: Math.random() * 360, // Initial random heading
-      consecutiveRestChecks: 0
+      heading: Math.random() * 360,
+      headingVelocity: 0,
     };
+    lastKnownPositions[sensor.id] = { ...sensor.baseLocation };
   }
 };
 
-// Behavior profiles for different animal types
 const getBehaviorModifiers = (profile, timeOfDay) => {
   const profiles = {
-    predator: {
-      morning: { activity: 0.6, restProb: 0.3, speed: 0.8 },
-      afternoon: { activity: 0.3, restProb: 0.6, speed: 0.4 },
-      evening: { activity: 0.9, restProb: 0.1, speed: 1.2 },
-      night: { activity: 1.0, restProb: 0.2, speed: 1.0 }
-    },
-    grazer: {
-      morning: { activity: 1.0, restProb: 0.2, speed: 0.7 },
-      afternoon: { activity: 0.5, restProb: 0.5, speed: 0.3 },
-      evening: { activity: 0.8, restProb: 0.3, speed: 0.6 },
-      night: { activity: 0.4, restProb: 0.6, speed: 0.2 }
-    },
-    herd: {
-      morning: { activity: 0.9, restProb: 0.2, speed: 0.8 },
-      afternoon: { activity: 0.6, restProb: 0.4, speed: 0.5 },
-      evening: { activity: 0.8, restProb: 0.3, speed: 0.7 },
-      night: { activity: 0.3, restProb: 0.7, speed: 0.2 }
-    },
-    browser: {
-      morning: { activity: 0.8, restProb: 0.3, speed: 0.6 },
-      afternoon: { activity: 0.7, restProb: 0.4, speed: 0.5 },
-      evening: { activity: 0.6, restProb: 0.4, speed: 0.5 },
-      night: { activity: 0.5, restProb: 0.5, speed: 0.3 }
-    }
+    predator: { morning: { activity: 0.6, restProb: 0.30, speed: 0.8 }, afternoon: { activity: 0.3, restProb: 0.60, speed: 0.4 }, evening: { activity: 0.9, restProb: 0.10, speed: 1.2 }, night: { activity: 1.0, restProb: 0.20, speed: 1.0 } },
+    grazer:   { morning: { activity: 1.0, restProb: 0.20, speed: 0.7 }, afternoon: { activity: 0.5, restProb: 0.50, speed: 0.3 }, evening: { activity: 0.8, restProb: 0.30, speed: 0.6 }, night: { activity: 0.4, restProb: 0.60, speed: 0.2 } },
+    herd:     { morning: { activity: 0.9, restProb: 0.20, speed: 0.8 }, afternoon: { activity: 0.6, restProb: 0.40, speed: 0.5 }, evening: { activity: 0.8, restProb: 0.30, speed: 0.7 }, night: { activity: 0.3, restProb: 0.70, speed: 0.2 } },
+    browser:  { morning: { activity: 0.8, restProb: 0.30, speed: 0.6 }, afternoon: { activity: 0.7, restProb: 0.40, speed: 0.5 }, evening: { activity: 0.6, restProb: 0.40, speed: 0.5 }, night: { activity: 0.5, restProb: 0.50, speed: 0.3 } },
   };
-  
   return profiles[profile]?.[timeOfDay] || { activity: 0.7, restProb: 0.3, speed: 0.7 };
 };
 
-// Simulate GPS movement with realistic animal behavior
+// ─── Movement ─────────────────────────────────────────────────────────────────
 const simulateMovement = (sensor) => {
-  initializeAnimalState(sensor.id);
-  
-  const state = animalStates[sensor.id];
-  const currentPos = lastKnownPositions[sensor.id] || { ...sensor.baseLocation };
-  const timeOfDay = getTimeOfDay();
-  const behavior = getBehaviorModifiers(sensor.behaviorProfile, timeOfDay);
-  
-  // Check if animal should rest
-  if (!state.isResting && randomBoolean(behavior.restProb)) {
-    state.isResting = true;
-    state.restDuration = Math.floor(randomInRange(3, 10)); // Rest for 3-10 iterations
-  }
-  
-  // Handle resting state
-  if (state.isResting) {
-    state.restDuration--;
-    if (state.restDuration <= 0) {
-      state.isResting = false;
-    }
-    
-    // Minimal movement while resting (GPS drift)
-    const drift = 0.00005;
+  // Fixed devices — return exact base location, no movement ever
+  if (sensor.stepSize === 0) {
     return {
-      latitude: currentPos.lat + (Math.random() - 0.5) * drift,
-      longitude: currentPos.lng + (Math.random() - 0.5) * drift,
+      latitude: sensor.baseLocation.lat,
+      longitude: sensor.baseLocation.lng,
       speed: 0,
-      isResting: true
+      isResting: true,
     };
   }
-  
-  // Active movement with momentum (animals don't change direction randomly)
-  const baseStepSize = 0.0005 * behavior.speed * behavior.activity;
-  
-  // Gradual heading changes (realistic turning)
-  state.heading += (Math.random() - 0.5) * 30; // Max 30 degree turn per iteration
-  state.heading = state.heading % 360;
-  
-  const headingRad = (state.heading * Math.PI) / 180;
-  
-  // Calculate new position based on heading
-  let nextLat = currentPos.lat + Math.cos(headingRad) * baseStepSize;
-  let nextLng = currentPos.lng + Math.sin(headingRad) * baseStepSize;
-  
-  // Geofencing: keep animal within territory
-  const distLat = nextLat - sensor.baseLocation.lat;
-  const distLng = nextLng - sensor.baseLocation.lng;
-  const distance = Math.sqrt(distLat * distLat + distLng * distLng);
-  
-  if (distance > sensor.movementRadius) {
-    // Turn back toward center when hitting boundary
-    const angleToCenter = Math.atan2(
-      sensor.baseLocation.lng - currentPos.lng,
-      sensor.baseLocation.lat - currentPos.lat
-    );
-    state.heading = (angleToCenter * 180) / Math.PI;
-    
-    // Pull back slightly
-    nextLat -= distLat * 0.2;
-    nextLng -= distLng * 0.2;
+
+  // GPS collar movement below
+  initializeAnimalState(sensor);
+
+  const state = animalStates[sensor.id];
+  const current = lastKnownPositions[sensor.id];
+  const timeOfDay = getTimeOfDay();
+  const behavior = getBehaviorModifiers(sensor.behaviorProfile, timeOfDay);
+
+  // Resting check
+  if (!state.isResting && randomBoolean(behavior.restProb * 0.15)) {
+    state.isResting = true;
+    state.restDuration = Math.floor(randomInRange(3, 8));
   }
-  
-  const newPos = { lat: nextLat, lng: nextLng };
-  lastKnownPositions[sensor.id] = newPos;
-  
-  // Calculate speed based on distance moved
-  const distMoved = Math.sqrt(
-    Math.pow(nextLat - currentPos.lat, 2) + 
-    Math.pow(nextLng - currentPos.lng, 2)
-  );
-  const speedKmh = (distMoved * 111) * (3600 / (SIMULATION_INTERVAL / 1000)); // Rough conversion
-  
-  return { 
-    latitude: newPos.lat, 
-    longitude: newPos.lng,
-    speed: speedKmh,
-    isResting: false
-  };
+
+  if (state.isResting) {
+    state.restDuration--;
+    if (state.restDuration <= 0) state.isResting = false;
+    const drift = 0.00004;
+    const proposed = {
+      lat: current.lat + (Math.random() - 0.5) * drift,
+      lng: current.lng + (Math.random() - 0.5) * drift,
+    };
+    const safe = clampToPark(proposed.lat, proposed.lng);
+    lastKnownPositions[sensor.id] = safe;
+    return { latitude: safe.lat, longitude: safe.lng, speed: 0, isResting: true };
+  }
+
+  // Momentum-based heading
+  const maxTurnRate = 20;
+  state.headingVelocity += (Math.random() - 0.5) * 10;
+  state.headingVelocity = Math.max(-maxTurnRate, Math.min(maxTurnRate, state.headingVelocity));
+  state.heading = (state.heading + state.headingVelocity + 360) % 360;
+
+  const stepSize = sensor.stepSize * behavior.speed * behavior.activity;
+  const headingRad = (state.heading * Math.PI) / 180;
+
+  const proposedLat = current.lat + Math.cos(headingRad) * stepSize;
+  const proposedLng = current.lng + Math.sin(headingRad) * stepSize;
+
+  const safe = clampToPark(proposedLat, proposedLng);
+
+  // If clamped, steer back toward centroid
+  if (safe.lat !== proposedLat || safe.lng !== proposedLng) {
+    state.headingVelocity = -state.headingVelocity * 0.8;
+    const angleToCenter = Math.atan2(
+      PARK_CENTROID.lng - current.lng,
+      PARK_CENTROID.lat - current.lat
+    ) * (180 / Math.PI);
+    state.heading = (state.heading * 0.6 + angleToCenter * 0.4 + 360) % 360;
+  }
+
+  lastKnownPositions[sensor.id] = safe;
+
+  const distDeg = Math.sqrt(Math.pow(safe.lat - current.lat, 2) + Math.pow(safe.lng - current.lng, 2));
+  const speedKmh = (distDeg * 111) * (3600 / (SIMULATION_INTERVAL / 1000));
+
+  return { latitude: safe.lat, longitude: safe.lng, speed: speedKmh, isResting: false };
 };
 
-// Track environmental conditions
-let weatherState = {
-  baseTemp: 22,
-  humidity: 50,
-  windSpeed: 5,
-  rainfall: 0,
-  lastUpdate: Date.now()
-};
+// ─── Weather State ────────────────────────────────────────────────────────────
+let weatherState = { baseTemp: 22, humidity: 50, windSpeed: 5, rainfall: 0, lastUpdate: Date.now() };
 
 const updateWeatherState = () => {
-  const now = Date.now();
-  const hoursSinceUpdate = (now - weatherState.lastUpdate) / (1000 * 60 * 60);
-  
-  if (hoursSinceUpdate > 0.5) { // Update every 30 minutes
-    // Gradual temperature change
-    weatherState.baseTemp += (Math.random() - 0.5) * 2;
-    weatherState.baseTemp = Math.max(15, Math.min(35, weatherState.baseTemp));
-    
-    // Humidity changes
-    weatherState.humidity += (Math.random() - 0.5) * 10;
-    weatherState.humidity = Math.max(20, Math.min(90, weatherState.humidity));
-    
-    // Wind fluctuations
-    weatherState.windSpeed += (Math.random() - 0.5) * 5;
-    weatherState.windSpeed = Math.max(0, Math.min(25, weatherState.windSpeed));
-    
-    // Rainfall (occasional)
-    if (Math.random() < 0.1) {
-      weatherState.rainfall = randomInRange(0, 8);
-    } else {
-      weatherState.rainfall = Math.max(0, weatherState.rainfall - 0.5);
-    }
-    
-    weatherState.lastUpdate = now;
+  const hoursSince = (Date.now() - weatherState.lastUpdate) / (1000 * 60 * 60);
+  if (hoursSince > 0.5) {
+    weatherState.baseTemp  = Math.max(15, Math.min(35, weatherState.baseTemp  + (Math.random() - 0.5) * 2));
+    weatherState.humidity  = Math.max(20, Math.min(90, weatherState.humidity  + (Math.random() - 0.5) * 10));
+    weatherState.windSpeed = Math.max(0,  Math.min(25, weatherState.windSpeed + (Math.random() - 0.5) * 5));
+    weatherState.rainfall  = Math.random() < 0.1 ? randomInRange(0, 8) : Math.max(0, weatherState.rainfall - 0.5);
+    weatherState.lastUpdate = Date.now();
   }
-  
   return weatherState;
 };
 
-// Generate sensor data payload
+// ─── Payload Generation ───────────────────────────────────────────────────────
 const generateSensorData = (sensor) => {
   const movement = simulateMovement(sensor);
-  const weather = updateWeatherState();
-  
+  const weather  = updateWeatherState();
+
   const payload = {
-    sensorId: sensor.id,
+    sensorId:   sensor.id,
     deviceType: sensor.deviceType,
-    speciesId: sensor.speciesId,
-    latitude: parseFloat(movement.latitude.toFixed(8)),
-    longitude: parseFloat(movement.longitude.toFixed(8)),
-    timestamp: new Date().toISOString()
+    speciesId:  sensor.speciesId,
+    latitude:   parseFloat(movement.latitude.toFixed(8)),
+    longitude:  parseFloat(movement.longitude.toFixed(8)),
+    timestamp:  new Date().toISOString(),
   };
 
-  // Device-specific data with realistic correlations
   switch (sensor.deviceType) {
-    case 'GPS Collar':
+    case 'GPS Collar': {
       const isActive = !movement.isResting;
       const exertion = movement.speed > 5 ? 1.2 : 1.0;
-      
-      payload.temperature = parseFloat((weather.baseTemp + randomInRange(-1, 2)).toFixed(2));
+      payload.temperature  = parseFloat((weather.baseTemp + randomInRange(-1, 2)).toFixed(2));
       payload.batteryLevel = updateBatteryLevel(sensor.id, sensor.deviceType);
-      payload.heartbeat = Math.floor(
-        randomInRange(60, 80) * (isActive ? exertion : 0.7)
-      ); // Lower heart rate when resting
-      payload.altitude = parseFloat((1650 + randomInRange(-10, 20)).toFixed(2));
-      payload.speed = parseFloat(movement.speed.toFixed(2));
-      payload.motion = isActive;
+      payload.heartbeat    = Math.floor(randomInRange(60, 80) * (isActive ? exertion : 0.7));
+      payload.altitude     = parseFloat((1650 + randomInRange(-10, 20)).toFixed(2));
+      payload.speed        = parseFloat(movement.speed.toFixed(2));
+      payload.motion       = isActive;
       break;
-      
-    case 'Camera Trap':
-      const timeOfDay = getTimeOfDay();
-      const detectionProb = timeOfDay === 'morning' || timeOfDay === 'evening' ? 0.4 : 0.2;
-      
-      payload.motion = randomBoolean(detectionProb);
+    }
+    case 'Camera Trap': {
+      const tod = getTimeOfDay();
+      const detectionProb = (tod === 'morning' || tod === 'evening') ? 0.4 : 0.2;
+      payload.motion       = randomBoolean(detectionProb);
       payload.batteryLevel = updateBatteryLevel(sensor.id, sensor.deviceType);
-      payload.temperature = parseFloat((weather.baseTemp + randomInRange(-0.5, 0.5)).toFixed(2));
-      
-      // Add image capture count when motion detected
-      if (payload.motion) {
-        payload.imagesCaptured = Math.floor(randomInRange(1, 5));
-      }
+      payload.temperature  = parseFloat((weather.baseTemp + randomInRange(-0.5, 0.5)).toFixed(2));
+      if (payload.motion) payload.imagesCaptured = Math.floor(randomInRange(1, 5));
       break;
-      
-    case 'Motion Sensor':
-      payload.motion = randomBoolean(0.35);
-      payload.batteryLevel = updateBatteryLevel(sensor.id, sensor.deviceType);
+    }
+    case 'Motion Sensor': {
+      payload.motion         = randomBoolean(0.35);
+      payload.batteryLevel   = updateBatteryLevel(sensor.id, sensor.deviceType);
       payload.signalStrength = Math.floor(randomInRange(60, 100));
       break;
-      
-    case 'Weather Station':
+    }
+    case 'Weather Station': {
       payload.temperature = parseFloat(weather.baseTemp.toFixed(2));
-      payload.metadata = {
-        humidity: parseFloat(weather.humidity.toFixed(2)),
+      payload.metadata    = {
+        humidity:  parseFloat(weather.humidity.toFixed(2)),
         windSpeed: parseFloat(weather.windSpeed.toFixed(2)),
-        rainfall: parseFloat(weather.rainfall.toFixed(2)),
-        pressure: parseFloat(randomInRange(1010, 1020).toFixed(2)),
-        uvIndex: Math.max(0, Math.floor(randomInRange(0, 11) * (getTimeOfDay() === 'afternoon' ? 1.2 : 0.8)))
+        rainfall:  parseFloat(weather.rainfall.toFixed(2)),
+        pressure:  parseFloat(randomInRange(1010, 1020).toFixed(2)),
+        uvIndex:   Math.max(0, Math.floor(randomInRange(0, 11) * (getTimeOfDay() === 'afternoon' ? 1.2 : 0.8))),
       };
       break;
+    }
   }
 
   return payload;
 };
 
-// Send data to API with retry logic
+// ─── API Send ─────────────────────────────────────────────────────────────────
 const sendSensorData = async (payload, retries = 2) => {
   try {
     const response = await axios.post(`${API_URL}/iot/data`, payload, {
       headers: { 'Content-Type': 'application/json' },
-      timeout: 5000
+      timeout: 5000,
     });
-    
-    console.log(`✓ [${new Date().toISOString()}] ${payload.sensorId} - Data sent successfully`);
+    console.log(`✓ [${new Date().toISOString()}] ${payload.sensorId} → (${payload.latitude.toFixed(5)}, ${payload.longitude.toFixed(5)})`);
     return response.data;
   } catch (error) {
     if (retries > 0 && error.code !== 'ECONNREFUSED') {
@@ -336,61 +706,56 @@ const sendSensorData = async (payload, retries = 2) => {
       await new Promise(resolve => setTimeout(resolve, 1000));
       return sendSensorData(payload, retries - 1);
     }
-    
-    console.error(`✗ [${new Date().toISOString()}] ${payload.sensorId} - Error:`, error.message);
+    console.error(`✗ [${new Date().toISOString()}] ${payload.sensorId} — ${error.message}`);
     return null;
   }
 };
 
-// Main simulation loop
+// ─── Main Loop ────────────────────────────────────────────────────────────────
 const runSimulation = async () => {
   console.log('═══════════════════════════════════════════════════════════');
   console.log('  IoT SENSOR SIMULATION SERVICE');
+  console.log('  Park: Nairobi National Park (polygon-constrained)');
   console.log('═══════════════════════════════════════════════════════════');
-  console.log(`  API Endpoint: ${API_URL}/iot/data`);
+  console.log(`  API Endpoint  : ${API_URL}/iot/data`);
   console.log(`  Active Sensors: ${SENSORS.length}`);
-  console.log(`  Interval: ${SIMULATION_INTERVAL}ms`);
-  console.log(`  Max Iterations: ${MAX_ITERATIONS}`);
+  console.log(`  Moving sensors: ${SENSORS.filter(s => s.stepSize > 0).map(s => s.id).join(', ')}`);
+  console.log(`  Fixed sensors : ${SENSORS.filter(s => s.stepSize === 0).map(s => s.id).join(', ')}`);
+  console.log(`  Interval      : ${SIMULATION_INTERVAL}ms`);
+
+  SENSORS.forEach(s => {
+    if (s.stepSize > 0 && !isInsidePolygon(s.baseLocation.lat, s.baseLocation.lng, PARK_BOUNDARY)) {
+      console.warn(`  ⚠ WARNING: Base location for ${s.id} is outside the park boundary!`);
+    }
+  });
+
   console.log('═══════════════════════════════════════════════════════════\n');
 
-  let iteration = 0;
-  let successCount = 0;
-  let failCount = 0;
+  let iteration = 0, successCount = 0, failCount = 0;
 
   const simulationTimer = setInterval(async () => {
     iteration++;
-    
-    console.log(`\n--- Iteration ${iteration}/${MAX_ITERATIONS} [${getTimeOfDay().toUpperCase()}] ---`);
-    
-    // Generate and send data for all sensors
-    const promises = SENSORS.map(sensor => {
-      const payload = generateSensorData(sensor);
-      return sendSensorData(payload);
-    });
+    console.log(`\n--- Iteration ${iteration} [${getTimeOfDay().toUpperCase()}] ---`);
 
-    const results = await Promise.all(promises);
-    results.forEach(r => r ? successCount++ : failCount++);
+    const results = await Promise.all(
+      SENSORS.map(sensor => sendSensorData(generateSensorData(sensor)))
+    );
+    results.forEach(r => (r ? successCount++ : failCount++));
 
-    // Stop after max iterations
     if (iteration >= MAX_ITERATIONS) {
       clearInterval(simulationTimer);
       console.log('\n═══════════════════════════════════════════════════════════');
       console.log('  SIMULATION COMPLETE');
-      console.log(`  Total data points sent: ${successCount}`);
-      console.log(`  Failed transmissions: ${failCount}`);
-      console.log(`  Success rate: ${((successCount / (successCount + failCount)) * 100).toFixed(2)}%`);
+      console.log(`  Data points sent : ${successCount}`);
+      console.log(`  Failed           : ${failCount}`);
+      console.log(`  Success rate     : ${((successCount / (successCount + failCount)) * 100).toFixed(2)}%`);
       console.log('═══════════════════════════════════════════════════════════\n');
       process.exit(0);
     }
   }, SIMULATION_INTERVAL);
 };
 
-// Handle graceful shutdown
-process.on('SIGINT', () => {
-  console.log('\n\nSimulation stopped by user');
-  process.exit(0);
-});
+process.on('SIGINT', () => { console.log('\n\nSimulation stopped by user'); process.exit(0); });
 
-// Start simulation
 console.log('Starting sensor simulation in 3 seconds...\n');
 setTimeout(runSimulation, 3000);
