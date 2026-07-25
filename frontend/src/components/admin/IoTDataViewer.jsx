@@ -17,33 +17,43 @@ L.Marker.prototype.options.icon = L.icon({
 });
 
 // --- Per-device-type coloured icons ---
-// Uses the free DivIcon approach — no extra assets needed
-const makeIcon = (color, shape = '●') =>
+// Text-label markers (mono, field-tag style) - no emoji
+const makeIcon = (color, label) =>
   L.divIcon({
     className: '',
     html: `
       <div style="
         background:${color};
-        color:#fff;
-        border-radius:50%;
-        width:32px;height:32px;
+        color:#EDE6D3;
+        border-radius:2px;
+        width:34px;height:34px;
         display:flex;align-items:center;justify-content:center;
-        font-size:16px;
+        font-family:'IBM Plex Mono',monospace;
+        font-size:9px;
+        font-weight:600;
+        letter-spacing:0.02em;
         box-shadow:0 2px 6px rgba(0,0,0,0.4);
-        border:2px solid #fff;
-      ">${shape}</div>`,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
+        border:1.5px solid #EDE6D3;
+      ">${label}</div>`,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
     popupAnchor: [0, -18],
   });
 
-const DEVICE_ICONS = {
-  'GPS Collar':      makeIcon('#16a34a', '🐾'),
-  'Camera Trap':     makeIcon('#2563eb', '📷'),
-  'Motion Sensor':   makeIcon('#d97706', '〰'),
-  'Weather Station': makeIcon('#7c3aed', '🌤'),
+const DEVICE_COLORS = {
+  'GPS Collar':      '#C98A3E',
+  'Camera Trap':     '#4A7C7C',
+  'Motion Sensor':   '#8C6229',
+  'Weather Station': '#6B8E8E',
 };
-const FALLBACK_ICON = makeIcon('#6b7280', '?');
+
+const DEVICE_ICONS = {
+  'GPS Collar':      makeIcon(DEVICE_COLORS['GPS Collar'], 'GPS'),
+  'Camera Trap':     makeIcon(DEVICE_COLORS['Camera Trap'], 'CAM'),
+  'Motion Sensor':   makeIcon(DEVICE_COLORS['Motion Sensor'], 'MOT'),
+  'Weather Station': makeIcon(DEVICE_COLORS['Weather Station'], 'WX'),
+};
+const FALLBACK_ICON = makeIcon('#3A4433', '?');
 
 // Nairobi National Park center
 const NNP_CENTER = [-1.3700, 36.8500];
@@ -91,32 +101,32 @@ const IoTDataViewer = () => {
   const latestPerSensor = deduplicateBySensor(iotData);
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-          <Activity className="h-5 w-5 mr-2 text-blue-600" />
+    <div className="border border-bush-line bg-bush-surface p-6">
+      <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
+        <h2 className="font-display text-lg font-semibold flex items-center">
+          <Activity className="h-4 w-4 mr-2 text-ochre" />
           Live IoT Sensor Data
         </h2>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center gap-3">
           {/* View toggle */}
-          <div className="flex bg-gray-100 rounded-lg p-1">
+          <div className="flex border border-bush-line">
             <button
               onClick={() => setViewMode('table')}
-              className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                viewMode === 'table' ? 'bg-white shadow text-blue-700' : 'text-gray-600'
+              className={`flex items-center px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest transition-colors ${
+                viewMode === 'table' ? 'bg-ochre text-bush' : 'text-bone/50 hover:text-bone'
               }`}
             >
-              <Table className="h-4 w-4 mr-2" />
+              <Table className="h-3.5 w-3.5 mr-1.5" />
               List
             </button>
             <button
               onClick={() => setViewMode('map')}
-              className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                viewMode === 'map' ? 'bg-white shadow text-blue-700' : 'text-gray-600'
+              className={`flex items-center px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest transition-colors border-l border-bush-line ${
+                viewMode === 'map' ? 'bg-ochre text-bush' : 'text-bone/50 hover:text-bone'
               }`}
             >
-              <MapIcon className="h-4 w-4 mr-2" />
+              <MapIcon className="h-3.5 w-3.5 mr-1.5" />
               Map
             </button>
           </div>
@@ -124,9 +134,9 @@ const IoTDataViewer = () => {
           <button
             onClick={fetchData}
             disabled={loading}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+            className="flex items-center px-4 py-2 border border-ochre text-ochre font-mono text-[11px] uppercase tracking-widest hover:bg-ochre hover:text-bush disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ochre transition-colors"
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3.5 w-3.5 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
         </div>
@@ -134,42 +144,48 @@ const IoTDataViewer = () => {
 
       {/* TABLE VIEW */}
       {viewMode === 'table' && (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+        <div className="overflow-x-auto border border-bush-line">
+          <table className="min-w-full divide-y divide-bush-line">
+            <thead className="bg-bush">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sensor ID</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Temp</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Battery</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Motion</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Timestamp</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">Sensor ID</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">Type</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">Location</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">Temp</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">Battery</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">Motion</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">Timestamp</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-bush-line">
               {/* Table still shows all recent readings for history */}
               {iotData.map((data) => (
-                <tr key={data.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{data.sensorId}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
-                    <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                <tr key={data.id} className="hover:bg-bush transition-colors">
+                  <td className="px-4 py-3 font-mono text-xs font-medium">{data.sensorId}</td>
+                  <td className="px-4 py-3 text-sm">
+                    <span
+                      className="font-mono text-[10px] uppercase tracking-widest px-2 py-1 border"
+                      style={{
+                        color: DEVICE_COLORS[data.deviceType] || '#A8AE9C',
+                        borderColor: DEVICE_COLORS[data.deviceType] || '#3A4433',
+                      }}
+                    >
                       {data.deviceType}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-4 py-3 font-mono text-xs text-bone/60">
                     {data.latitude  != null ? Number(data.latitude).toFixed(5)  : '—'},{' '}
                     {data.longitude != null ? Number(data.longitude).toFixed(5) : '—'}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-4 py-3 font-mono text-xs text-bone/60">
                     {data.temperature ? `${data.temperature}°C` : '—'}
                   </td>
                   <td className="px-4 py-3 text-sm">
                     {data.batteryLevel != null ? (
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        data.batteryLevel > 70 ? 'bg-green-100 text-green-800' :
-                        data.batteryLevel > 30 ? 'bg-yellow-100 text-yellow-800' :
-                                                  'bg-red-100 text-red-800'
+                      <span className={`font-mono text-[10px] uppercase tracking-widest px-2 py-1 border ${
+                        data.batteryLevel > 70 ? 'border-teal text-teal' :
+                        data.batteryLevel > 30 ? 'border-ochre text-ochre' :
+                                                  'border-rust text-rust'
                       }`}>
                         {data.batteryLevel}%
                       </span>
@@ -177,14 +193,14 @@ const IoTDataViewer = () => {
                   </td>
                   <td className="px-4 py-3 text-sm">
                     {data.motion !== null && data.motion !== undefined ? (
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        data.motion ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                      <span className={`font-mono text-[10px] uppercase tracking-widest px-2 py-1 border ${
+                        data.motion ? 'border-teal text-teal' : 'border-bush-line text-bone/40'
                       }`}>
                         {data.motion ? 'Active' : 'Still'}
                       </span>
                     ) : '—'}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-4 py-3 font-mono text-xs text-bone/50">
                     {new Date(data.timestamp).toLocaleString()}
                   </td>
                 </tr>
@@ -194,8 +210,10 @@ const IoTDataViewer = () => {
 
           {iotData.length === 0 && !loading && (
             <div className="text-center py-12">
-              <Activity className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No IoT data available. Start the sensor simulation.</p>
+              <Activity className="h-10 w-10 text-bone/20 mx-auto mb-4" />
+              <p className="font-mono text-xs uppercase tracking-widest text-bone/40">
+                No IoT data available. Start the sensor simulation.
+              </p>
             </div>
           )}
         </div>
@@ -205,18 +223,16 @@ const IoTDataViewer = () => {
       {viewMode === 'map' && (
         <>
           {/* Legend */}
-          <div className="flex flex-wrap gap-4 mb-3 text-xs text-gray-600">
-            {Object.entries(DEVICE_ICONS).map(([type]) => (
-              <span key={type} className="flex items-center gap-1">
-                <span className="inline-block w-3 h-3 rounded-full" style={{
-                  background: { 'GPS Collar': '#16a34a', 'Camera Trap': '#2563eb', 'Motion Sensor': '#d97706', 'Weather Station': '#7c3aed' }[type]
-                }} />
+          <div className="flex flex-wrap gap-4 mb-3 font-mono text-[11px] text-bone/60">
+            {Object.entries(DEVICE_COLORS).map(([type, color]) => (
+              <span key={type} className="flex items-center gap-1.5">
+                <span className="inline-block w-2.5 h-2.5" style={{ background: color }} />
                 {type}
               </span>
             ))}
           </div>
 
-          <div className="h-[500px] w-full rounded-lg overflow-hidden border border-gray-200">
+          <div className="h-[500px] w-full overflow-hidden border border-bush-line">
             <MapContainer
               center={NNP_CENTER}
               zoom={NNP_ZOOM}
@@ -237,15 +253,15 @@ const IoTDataViewer = () => {
                 return (
                   <Marker key={data.sensorId} position={[lat, lng]} icon={icon}>
                     <Popup>
-                      <div className="text-sm space-y-1 min-w-[160px]">
-                        <p className="font-bold text-gray-800">{data.sensorId}</p>
-                        <p className="text-gray-500">{data.deviceType}</p>
+                      <div className="font-mono text-xs space-y-1 min-w-[160px]">
+                        <p className="font-bold text-bush">{data.sensorId}</p>
+                        <p className="text-bush/60">{data.deviceType}</p>
                         <hr />
-                        {data.temperature  != null && <p>🌡 {data.temperature}°C</p>}
-                        {data.batteryLevel != null && <p>🔋 {data.batteryLevel}%</p>}
-                        {data.speed        != null && <p>💨 {Number(data.speed).toFixed(1)} km/h</p>}
-                        {data.motion       != null && <p>📡 {data.motion ? 'Active' : 'Still'}</p>}
-                        <p className="text-gray-400 text-xs pt-1">
+                        {data.temperature  != null && <p>TEMP {data.temperature}°C</p>}
+                        {data.batteryLevel != null && <p>BATT {data.batteryLevel}%</p>}
+                        {data.speed        != null && <p>SPD {Number(data.speed).toFixed(1)} km/h</p>}
+                        {data.motion       != null && <p>MOTION {data.motion ? 'Active' : 'Still'}</p>}
+                        <p className="text-bush/40 text-[10px] pt-1">
                           {new Date(data.timestamp).toLocaleString()}
                         </p>
                       </div>
@@ -256,15 +272,15 @@ const IoTDataViewer = () => {
             </MapContainer>
           </div>
 
-          <p className="mt-2 text-xs text-gray-500">
-            Showing latest position for {latestPerSensor.length} sensor{latestPerSensor.length !== 1 ? 's' : ''} • Auto-refreshes every 15 s
+          <p className="mt-2 font-mono text-[11px] text-bone/40">
+            Showing latest position for {latestPerSensor.length} sensor{latestPerSensor.length !== 1 ? 's' : ''} &middot; Auto-refreshes every 15 s
           </p>
         </>
       )}
 
       {viewMode === 'table' && (
-        <div className="mt-4 text-sm text-gray-600">
-          Showing most recent {iotData.length} readings • Auto-refreshes every 15 seconds
+        <div className="mt-4 font-mono text-[11px] text-bone/40">
+          Showing most recent {iotData.length} readings &middot; Auto-refreshes every 15 seconds
         </div>
       )}
     </div>
