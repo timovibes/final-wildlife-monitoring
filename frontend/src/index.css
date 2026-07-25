@@ -1,6 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-bush text-bone font-body;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+}
+
+/* Field-tag record: sighting/species/sensor rows. Reused across dashboards. */
+@layer components {
+  .field-tag {
+    @apply border-b border-bush-line px-4 py-3 flex gap-3 items-start last:border-b-0;
+  }
+
+  .status-dot {
+    @apply w-2 h-2 rounded-full mt-1.5 flex-shrink-0;
+  }
+
+  .status-dot-online {
+    @apply bg-teal;
+  }
+
+  .status-dot-offline {
+    @apply bg-rust ring-2 ring-rust-dim;
+  }
+
+  .status-dot-pending {
+    @apply bg-ochre;
+  }
+}
 
 /* Add this to your index.css or a <style> tag in Reports.jsx */
 @media print {
@@ -12,6 +47,7 @@
   /* Reset background for printing */
   body {
     background-color: white !important;
+    color: black !important;
   }
 
   /* Force charts to maintain their size */
@@ -24,7 +60,7 @@
   .grid {
     display: block !important;
   }
-  
+
   .bg-white {
     border: 1px solid #e5e7eb !important;
     margin-bottom: 20px !important;
