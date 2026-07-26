@@ -18,7 +18,9 @@ require('dotenv').config();
  * All animal movement is strictly constrained within the Nairobi National
  * Park polygon using ray-casting point-in-polygon checks.
  *
- * Usage: node services/sensorSimulation.js
+ * Usage (standalone):        node services/sensorSimulation.js
+ * Usage (from other code):   const sim = require('./services/sensorSimulation');
+ *                            sim.startSimulation(); sim.stopSimulation(); sim.isRunning();
  */
 
 const API_URL = process.env.API_URL || 'http://localhost:5000/api';
@@ -113,7 +115,6 @@ const SENSORS = [
 
 // ─── Simulation Parameters ───────────────────────────────────────────────────
 const SIMULATION_INTERVAL = 3000;
-const MAX_ITERATIONS = Infinity;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const getTimeOfDay = () => {
@@ -362,13 +363,31 @@ const sendSensorData = async (payload, retries = 2) => {
   }
 };
 
-// ─── Main Loop ────────────────────────────────────────────────────────────────
-const runSimulation = async () => {
+// ─── Start/Stop control (module-level state — one simulation per process) ─────
+let simulationTimer = null;
+let running = false;
+let iteration = 0;
+let successCount = 0;
+let failCount = 0;
+
+const isRunning = () => running;
+
+const startSimulation = () => {
+  if (running) {
+    console.log('Simulation already running — ignoring start request.');
+    return;
+  }
+
+  running = true;
+  iteration = 0;
+  successCount = 0;
+  failCount = 0;
+
   const moving = SENSORS.filter(s => s.stepSize > 0);
   const fixed  = SENSORS.filter(s => s.stepSize === 0);
 
   console.log('═══════════════════════════════════════════════════════════');
-  console.log('  IoT SENSOR SIMULATION SERVICE');
+  console.log('  IoT SENSOR SIMULATION SERVICE — STARTED');
   console.log('  Park: Nairobi National Park (polygon-constrained)');
   console.log('═══════════════════════════════════════════════════════════');
   console.log(`  API Endpoint  : ${API_URL}/iot/data`);
@@ -385,9 +404,7 @@ const runSimulation = async () => {
 
   console.log('═══════════════════════════════════════════════════════════\n');
 
-  let iteration = 0, successCount = 0, failCount = 0;
-
-  const simulationTimer = setInterval(async () => {
+  simulationTimer = setInterval(async () => {
     iteration++;
     console.log(`\n--- Iteration ${iteration} [${getTimeOfDay().toUpperCase()}] ---`);
 
@@ -395,21 +412,38 @@ const runSimulation = async () => {
       SENSORS.map(sensor => sendSensorData(generateSensorData(sensor)))
     );
     results.forEach(r => (r ? successCount++ : failCount++));
-
-    if (iteration >= MAX_ITERATIONS) {
-      clearInterval(simulationTimer);
-      console.log('\n═══════════════════════════════════════════════════════════');
-      console.log('  SIMULATION COMPLETE');
-      console.log(`  Data points sent : ${successCount}`);
-      console.log(`  Failed           : ${failCount}`);
-      console.log(`  Success rate     : ${((successCount / (successCount + failCount)) * 100).toFixed(2)}%`);
-      console.log('═══════════════════════════════════════════════════════════\n');
-      process.exit(0);
-    }
   }, SIMULATION_INTERVAL);
 };
 
-process.on('SIGINT', () => { console.log('\n\nSimulation stopped by user'); process.exit(0); });
+const stopSimulation = () => {
+  if (!running) {
+    console.log('Simulation is not running — ignoring stop request.');
+    return;
+  }
 
-console.log('Starting sensor simulation in 3 seconds...\n');
-setTimeout(runSimulation, 3000);
+  clearInterval(simulationTimer);
+  simulationTimer = null;
+  running = false;
+
+  console.log('\n═══════════════════════════════════════════════════════════');
+  console.log('  SIMULATION STOPPED');
+  console.log(`  Data points sent : ${successCount}`);
+  console.log(`  Failed           : ${failCount}`);
+  const total = successCount + failCount;
+  console.log(`  Success rate     : ${total > 0 ? ((successCount / total) * 100).toFixed(2) : '0.00'}%`);
+  console.log('═══════════════════════════════════════════════════════════\n');
+};
+
+module.exports = { startSimulation, stopSimulation, isRunning };
+
+// ─── Standalone CLI usage — `node services/sensorSimulation.js` or `npm run simulate` ───
+if (require.main === module) {
+  process.on('SIGINT', () => {
+    console.log('\n\nSimulation stopped by user');
+    stopSimulation();
+    process.exit(0);
+  });
+
+  console.log('Starting sensor simulation in 3 seconds...\n');
+  setTimeout(startSimulation, 3000);
+}

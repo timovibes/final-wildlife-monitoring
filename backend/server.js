@@ -12,6 +12,7 @@ const sightingsRoutes = require('./routes/sightings');
 const incidentsRoutes = require('./routes/incidents');
 const reportsRoutes = require('./routes/reports');
 const iotRoutes = require('./routes/iot');
+const simulationRoutes = require('./routes/simulation');
 
 /**
  * Wildlife & Biodiversity Monitoring System - Backend Server
@@ -77,6 +78,7 @@ app.use('/api/sightings', sightingsRoutes);
 app.use('/api/incidents', incidentsRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/iot', iotRoutes);
+app.use('/api/simulation', simulationRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -142,6 +144,8 @@ const startServer = async () => {
       console.log('    GET    /api/incidents');
       console.log('    GET    /api/reports/dashboard');
       console.log('    POST   /api/iot/data');
+      console.log('    GET    /api/simulation/status');
+      console.log('    POST   /api/simulation/toggle');
       console.log('═══════════════════════════════════════════════════════════\n');
       console.log('  Server ready. Press Ctrl+C to stop.\n');
     });

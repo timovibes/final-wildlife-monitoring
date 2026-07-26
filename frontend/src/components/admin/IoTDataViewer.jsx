@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, RefreshCw, Table, Map as MapIcon } from 'lucide-react';
+import { Activity, RefreshCw, Table, Map as MapIcon, Play, Square } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -76,6 +76,10 @@ const IoTDataViewer = () => {
   const [loading, setLoading]   = useState(false);
   const [viewMode, setViewMode] = useState('table');
 
+  // ── Simulation control ────────────────────────────────────────────────────
+  const [simRunning, setSimRunning] = useState(false);
+  const [simLoading, setSimLoading] = useState(false);
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -91,8 +95,35 @@ const IoTDataViewer = () => {
     }
   };
 
+  const fetchSimStatus = async () => {
+    try {
+      const response = await api.get('/simulation/status');
+      if (response.data.success) {
+        setSimRunning(response.data.data.running);
+      }
+    } catch (error) {
+      console.error('Failed to fetch simulation status:', error);
+    }
+  };
+
+  const handleToggleSimulation = async () => {
+    setSimLoading(true);
+    try {
+      const response = await api.post('/simulation/toggle');
+      if (response.data.success) {
+        setSimRunning(response.data.data.running);
+      }
+    } catch (error) {
+      console.error('Failed to toggle simulation:', error);
+      alert('Failed to toggle simulation. Check that the backend is running.');
+    } finally {
+      setSimLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchData();
+    fetchSimStatus();
     const interval = setInterval(fetchData, 15000);
     return () => clearInterval(interval);
   }, []);
@@ -108,7 +139,30 @@ const IoTDataViewer = () => {
           Live IoT Sensor Data
         </h2>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Simulation toggle — single button, state determines label/color */}
+          <button
+            onClick={handleToggleSimulation}
+            disabled={simLoading}
+            className={`flex items-center px-4 py-2 font-mono text-[11px] uppercase tracking-widest font-semibold transition-colors disabled:opacity-40 ${
+              simRunning
+                ? 'border border-rust text-rust hover:bg-rust hover:text-bush'
+                : 'bg-teal text-bush hover:bg-[#5c9494]'
+            }`}
+          >
+            {simRunning ? (
+              <>
+                <Square className="h-3.5 w-3.5 mr-2" />
+                Stop Simulation
+              </>
+            ) : (
+              <>
+                <Play className="h-3.5 w-3.5 mr-2" />
+                Start Simulation
+              </>
+            )}
+          </button>
+
           {/* View toggle */}
           <div className="flex border border-bush-line">
             <button
@@ -140,6 +194,12 @@ const IoTDataViewer = () => {
             Refresh
           </button>
         </div>
+      </div>
+
+      {/* Simulation status line */}
+      <div className="mb-4 flex items-center gap-2 font-mono text-[11px] text-bone/40">
+        <span className={`w-2 h-2 rounded-full ${simRunning ? 'bg-teal' : 'bg-bush-line'}`}></span>
+        {simRunning ? 'Simulation running — sensors reporting every 3s' : 'Simulation stopped'}
       </div>
 
       {/* TABLE VIEW */}
@@ -212,7 +272,7 @@ const IoTDataViewer = () => {
             <div className="text-center py-12">
               <Activity className="h-10 w-10 text-bone/20 mx-auto mb-4" />
               <p className="font-mono text-xs uppercase tracking-widest text-bone/40">
-                No IoT data available. Start the sensor simulation.
+                No IoT data available. {simRunning ? 'Waiting for first reading…' : 'Start the sensor simulation.'}
               </p>
             </div>
           )}
