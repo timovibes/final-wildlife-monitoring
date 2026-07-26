@@ -38,33 +38,33 @@ const UserManagement = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-bush text-bone font-body">
       <Navbar user={currentUser} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">System Users</h1>
+        <h1 className="font-display text-2xl font-semibold mb-6">System Users</h1>
         
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-          <ul className="divide-y divide-gray-200">
+        <div className="border border-bush-line bg-bush-surface overflow-hidden">
+          <ul className="divide-y divide-bush-line">
             {users.map((u) => (
               <li key={u.id} className="px-6 py-4 flex items-center justify-between">
                 <div className="flex items-center">
-                  <div className="bg-gray-100 p-2 rounded-full">
-                    <UserIcon className="h-5 w-5 text-gray-600" />
+                  <div className="border border-bush-line p-2">
+                    <UserIcon className="h-4 w-4 text-bone/60" />
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-900">{u.firstName} {u.lastName}</p>
-                    <p className="text-sm text-gray-500">{u.email}</p>
+                    <p className="text-sm font-medium text-bone">{u.firstName} {u.lastName}</p>
+                    <p className="font-mono text-xs text-bone/40">{u.email}</p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-4">
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    u.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                <div className="flex items-center gap-4">
+                  <span className={`px-2 py-1 font-mono text-[10px] uppercase tracking-widest border ${
+                    u.role === 'admin' ? 'border-ochre text-ochre' : 'border-teal text-teal'
                   }`}>
                     {u.role}
                   </span>
                   {u.id !== currentUser.id && (
-                    <button onClick={() => handleDeleteUser(u.id)} className="text-red-600 hover:text-red-900">
-                      <Trash2 className="h-5 w-5" />
+                    <button onClick={() => handleDeleteUser(u.id)} className="text-rust hover:text-bone">
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   )}
                 </div>

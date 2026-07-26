@@ -1,5 +1,5 @@
 import React from 'react';
-import { WifiOff, Wifi, RefreshCw } from 'lucide-react';
+import { WifiOff, RefreshCw } from 'lucide-react';
 
 const OfflineIndicator = ({ isOnline, isPending }) => {
   if (isOnline && !isPending) {
@@ -9,16 +9,16 @@ const OfflineIndicator = ({ isOnline, isPending }) => {
   return (
     <div className="fixed top-0 left-0 right-0 z-50">
       {!isOnline && (
-        <div className="bg-yellow-500 text-white px-4 py-2 text-center flex items-center justify-center space-x-2">
-          <WifiOff className="h-5 w-5" />
-          <span className="font-medium">You are currently offline. Data will sync when connection is restored.</span>
+        <div className="bg-rust text-bone px-4 py-2 text-center flex items-center justify-center gap-2 font-mono text-xs uppercase tracking-widest">
+          <WifiOff className="h-4 w-4" />
+          <span>You are currently offline. Data will sync when connection is restored.</span>
         </div>
       )}
       
       {isOnline && isPending && (
-        <div className="bg-blue-500 text-white px-4 py-2 text-center flex items-center justify-center space-x-2">
-          <RefreshCw className="h-5 w-5 animate-spin" />
-          <span className="font-medium">Syncing offline data...</span>
+        <div className="bg-ochre text-bush px-4 py-2 text-center flex items-center justify-center gap-2 font-mono text-xs uppercase tracking-widest font-semibold">
+          <RefreshCw className="h-4 w-4 animate-spin" />
+          <span>Syncing offline data...</span>
         </div>
       )}
     </div>

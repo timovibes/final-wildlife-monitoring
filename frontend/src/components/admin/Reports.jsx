@@ -26,52 +26,54 @@ ChartJS.register(
   BarElement, ArcElement, Title, Tooltip, Legend, Filler,
 );
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-const PALETTE = ['#059669', '#2563EB', '#D97706', '#DC2626', '#7C3AED', '#0891B2'];
+// ─── Constants — field-ops palette (recharts/Chart.js need literal hex) ───────
+const PALETTE = ['#C98A3E', '#4A7C7C', '#8C6229', '#6B8E8E', '#B5432F', '#A8AE9C'];
 
 const CON_COLORS = {
-  'Critically Endangered': '#DC2626',
-  'Endangered':            '#EA580C',
-  'Vulnerable':            '#D97706',
-  'Near Threatened':       '#65A30D',
-  'Least Concern':         '#16A34A',
+  'Critically Endangered': '#B5432F',
+  'Endangered':            '#C98A3E',
+  'Vulnerable':            '#8C6229',
+  'Near Threatened':       '#6B8E8E',
+  'Least Concern':         '#4A7C7C',
 };
 
-const SEVERITY_COLORS = ['#DC2626', '#EA580C', '#D97706', '#65A30D'];
+const SEVERITY_COLORS = ['#B5432F', '#C98A3E', '#8C6229', '#4A7C7C'];
 
 const RANK_STYLE = [
-  { bg: 'bg-amber-400',  text: 'text-white'    },
-  { bg: 'bg-gray-300',   text: 'text-gray-700' },
-  { bg: 'bg-amber-600',  text: 'text-white'    },
-  { bg: 'bg-gray-200',   text: 'text-gray-600' },
-  { bg: 'bg-gray-100',   text: 'text-gray-500' },
+  { bg: 'bg-ochre',        text: 'text-bush'   },
+  { bg: 'bg-bush-line',    text: 'text-bone'   },
+  { bg: 'bg-ochre-dim',    text: 'text-bone'   },
+  { bg: 'bg-bush',         text: 'text-bone/60' },
+  { bg: 'bg-bush',         text: 'text-bone/40' },
 ];
 
-const getRankStyle = (i) => RANK_STYLE[i] ?? { bg: 'bg-gray-100', text: 'text-gray-400' };
+const getRankStyle = (i) => RANK_STYLE[i] ?? { bg: 'bg-bush', text: 'text-bone/40' };
 
 const getBatteryStyle = (level) => {
-  if (level >= 60) return { text: 'text-emerald-600', bar: 'bg-emerald-500' };
-  if (level >= 30) return { text: 'text-amber-500',   bar: 'bg-amber-500'   };
-  return                 { text: 'text-red-500',      bar: 'bg-red-500'     };
+  if (level >= 60) return { text: 'text-teal',  bar: 'bg-teal'  };
+  if (level >= 30) return { text: 'text-ochre', bar: 'bg-ochre' };
+  return                 { text: 'text-rust',  bar: 'bg-rust'  };
 };
 
 const fmt = (n) => Number(n).toLocaleString();
 
 // ─── Chart.js option sets (separate — Doughnut must not receive scales) ───────
 const tooltipPlugin = {
-  backgroundColor: '#111827',
-  titleColor: '#9CA3AF',
-  bodyColor: '#fff',
+  backgroundColor: '#242D1F',
+  titleColor: '#A8AE9C',
+  bodyColor: '#EDE6D3',
   padding: 10,
-  cornerRadius: 10,
+  cornerRadius: 2,
+  titleFont: { family: 'IBM Plex Mono', size: 11 },
+  bodyFont: { family: 'IBM Plex Mono', size: 11 },
 };
 
 const lineOptions = {
   maintainAspectRatio: false,
   plugins: { legend: { display: false }, tooltip: tooltipPlugin },
   scales: {
-    x: { grid: { display: false }, ticks: { color: '#9CA3AF', font: { size: 11 } } },
-    y: { grid: { color: '#F3F4F6' }, ticks: { color: '#9CA3AF', font: { size: 11 } } },
+    x: { grid: { display: false }, ticks: { color: '#A8AE9C', font: { size: 11, family: 'IBM Plex Mono' } } },
+    y: { grid: { color: '#3A4433' }, ticks: { color: '#A8AE9C', font: { size: 11, family: 'IBM Plex Mono' } } },
   },
 };
 
@@ -79,8 +81,8 @@ const barOptions = {
   maintainAspectRatio: false,
   plugins: { legend: { display: false }, tooltip: tooltipPlugin },
   scales: {
-    x: { grid: { display: false }, ticks: { color: '#9CA3AF', font: { size: 11 } } },
-    y: { grid: { color: '#F3F4F6' }, ticks: { color: '#9CA3AF', font: { size: 11 } } },
+    x: { grid: { display: false }, ticks: { color: '#A8AE9C', font: { size: 11, family: 'IBM Plex Mono' } } },
+    y: { grid: { color: '#3A4433' }, ticks: { color: '#A8AE9C', font: { size: 11, family: 'IBM Plex Mono' } } },
   },
 };
 
@@ -91,7 +93,7 @@ const doughnutOptions = {
     legend: {
       display: true,
       position: 'bottom',
-      labels: { boxWidth: 10, font: { size: 11 }, color: '#6B7280' },
+      labels: { boxWidth: 10, font: { size: 11, family: 'IBM Plex Mono' }, color: '#A8AE9C' },
     },
     tooltip: tooltipPlugin,
   },
@@ -99,49 +101,48 @@ const doughnutOptions = {
 
 // ─── Shared UI components ─────────────────────────────────────────────────────
 const Card = ({ children, className = '' }) => (
-  <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-200 ${className}`}>
+  <div className={`bg-bush-surface border border-bush-line ${className}`}>
     {children}
   </div>
 );
 
-const CardHeader = ({ icon: Icon, iconBg, iconColor, title, subtitle }) => (
+const CardHeader = ({ icon: Icon, iconColor = 'text-ochre', title, subtitle }) => (
   <div className="flex items-center gap-3 p-5 pb-0">
-    <div className={`flex items-center justify-center w-9 h-9 rounded-xl ${iconBg}`}>
+    <div className="flex items-center justify-center w-8 h-8 border border-bush-line">
       <Icon className={`h-4 w-4 ${iconColor}`} />
     </div>
     <div>
-      <h3 className="text-sm font-semibold text-gray-800">{title}</h3>
-      {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
+      <h3 className="font-display text-sm font-semibold text-bone">{title}</h3>
+      {subtitle && <p className="font-mono text-[10px] uppercase tracking-widest text-bone/40 mt-0.5">{subtitle}</p>}
     </div>
   </div>
 );
 
 const EmptyState = ({ message = 'No data available' }) => (
-  <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-    <BarChart2 className="h-8 w-8 mb-2 opacity-30" />
-    <p className="text-sm">{message}</p>
+  <div className="flex flex-col items-center justify-center py-12 text-bone/30">
+    <BarChart2 className="h-7 w-7 mb-2" />
+    <p className="font-mono text-xs uppercase tracking-widest">{message}</p>
   </div>
 );
 
-const StatCard = ({ icon: Icon, iconBg, iconColor, label, value, sub }) => (
+const StatCard = ({ icon: Icon, iconColor, label, value, sub }) => (
   <Card className="p-5">
-    <div className={`flex items-center justify-center w-11 h-11 rounded-2xl ${iconBg} mb-4`}>
-      <Icon className={`h-5 w-5 ${iconColor}`} />
+    <div className="flex items-center justify-between mb-3">
+      <p className="font-mono text-[10px] uppercase tracking-widest text-bone/50">{label}</p>
+      <Icon className={`h-4 w-4 ${iconColor}`} />
     </div>
-    <p className="text-2xl font-bold text-gray-900 tracking-tight">{value}</p>
-    <p className="text-sm font-medium text-gray-500 mt-0.5">{label}</p>
-    {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+    <p className="font-display text-2xl font-bold text-bone tracking-tight">{value}</p>
+    {sub && <p className="text-xs text-bone/40 mt-1">{sub}</p>}
   </Card>
 );
 
 const StatusBadge = ({ status }) => {
-  const color = CON_COLORS[status] || '#6B7280';
+  const color = CON_COLORS[status] || '#A8AE9C';
   return (
     <span
-      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold"
-      style={{ backgroundColor: `${color}18`, color }}
+      className="inline-flex items-center px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest border"
+      style={{ borderColor: color, color }}
     >
-      <span className="w-1.5 h-1.5 rounded-full mr-1.5 inline-block" style={{ backgroundColor: color }} />
       {status}
     </span>
   );
@@ -150,15 +151,15 @@ const StatusBadge = ({ status }) => {
 const SectionDivider = ({ icon: Icon, title, description }) => (
   <div className="flex items-center gap-4 py-2">
     <div className="flex items-center gap-3 shrink-0">
-      <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-emerald-600 shadow-sm">
-        <Icon className="h-4 w-4 text-white" />
+      <div className="flex items-center justify-center w-8 h-8 border border-ochre">
+        <Icon className="h-4 w-4 text-ochre" />
       </div>
       <div>
-        <h2 className="text-base font-bold text-gray-900">{title}</h2>
-        {description && <p className="text-xs text-gray-400">{description}</p>}
+        <h2 className="font-display text-base font-bold text-bone">{title}</h2>
+        {description && <p className="font-mono text-[10px] uppercase tracking-widest text-bone/40">{description}</p>}
       </div>
     </div>
-    <div className="flex-1 h-px bg-gradient-to-r from-emerald-100 to-transparent" />
+    <div className="flex-1 h-px bg-bush-line" />
   </div>
 );
 
@@ -172,12 +173,12 @@ const PieLegend = ({ data, colors }) => {
         const pct   = total > 0 ? (entry.value / total) * 100 : 0;
         return (
           <div key={entry.name} className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-            <span className="text-xs text-gray-600 flex-1 capitalize truncate">{entry.name}</span>
-            <div className="w-20 h-1.5 rounded-full bg-gray-100 overflow-hidden shrink-0">
-              <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
+            <span className="w-2 h-2 shrink-0" style={{ backgroundColor: color }} />
+            <span className="font-mono text-xs text-bone/60 flex-1 capitalize truncate">{entry.name}</span>
+            <div className="w-20 h-1.5 bg-bush overflow-hidden shrink-0">
+              <div className="h-full" style={{ width: `${pct}%`, backgroundColor: color }} />
             </div>
-            <span className="text-xs font-bold text-gray-900 w-6 text-right shrink-0">{entry.value}</span>
+            <span className="font-mono text-xs font-bold text-bone w-6 text-right shrink-0">{entry.value}</span>
           </div>
         );
       })}
@@ -188,11 +189,11 @@ const PieLegend = ({ data, colors }) => {
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-gray-900 text-white text-xs rounded-xl px-3 py-2 shadow-xl border border-gray-700">
-      {label && <p className="font-semibold mb-1 text-gray-300">{label}</p>}
+    <div className="bg-bush-surface text-bone font-mono text-xs px-3 py-2 border border-bush-line">
+      {label && <p className="font-semibold mb-1 text-bone/50">{label}</p>}
       {payload.map((p, i) => (
-        <p key={i} style={{ color: p.color || '#10b981' }}>
-          {p.name}: <span className="font-bold text-white">{fmt(p.value)}</span>
+        <p key={i} style={{ color: p.color || '#4A7C7C' }}>
+          {p.name}: <span className="font-bold text-bone">{fmt(p.value)}</span>
         </p>
       ))}
     </div>
@@ -307,7 +308,7 @@ const Reports = () => {
   const handleDownloadPDF = async () => {
     const el = reportRef.current;
     if (!el) return;
-    const canvas  = await html2canvas(el, { scale: 2, useCORS: true, logging: false, backgroundColor: '#f9fafb' });
+    const canvas  = await html2canvas(el, { scale: 2, useCORS: true, logging: false, backgroundColor: '#1B2318' });
     const imgData = canvas.toDataURL('image/png');
     const pdf     = new jsPDF('p', 'mm', 'a4');
     const w       = pdf.internal.pageSize.getWidth();
@@ -324,10 +325,10 @@ const Reports = () => {
       datasets: [{
         label: 'Total Sightings',
         data: data.map(d => d.count),
-        borderColor: '#059669',
-        backgroundColor: 'rgba(5,150,105,0.08)',
+        borderColor: '#4A7C7C',
+        backgroundColor: 'rgba(74,124,124,0.12)',
         fill: true, tension: 0.4, borderWidth: 2,
-        pointBackgroundColor: '#059669', pointRadius: 3,
+        pointBackgroundColor: '#4A7C7C', pointRadius: 3,
       }],
     };
   };
@@ -338,8 +339,8 @@ const Reports = () => {
       labels: speciesDist.byCategory.map(d => d.category),
       datasets: [{
         data: speciesDist.byCategory.map(d => d.count),
-        backgroundColor: ['#059669','#2563eb','#db2777','#9333ea','#ea580c','#0891b2','#ca8a04'],
-        borderWidth: 2, borderColor: '#fff', hoverOffset: 6,
+        backgroundColor: PALETTE,
+        borderWidth: 2, borderColor: '#1B2318', hoverOffset: 6,
       }],
     };
   };
@@ -351,8 +352,8 @@ const Reports = () => {
       datasets: [{
         label: 'Incidents',
         data: incidentTrends.byType.map(d => d.count),
-        backgroundColor: 'rgba(239,68,68,0.15)',
-        borderColor: '#EF4444', borderWidth: 2, borderRadius: 6,
+        backgroundColor: 'rgba(181,67,47,0.18)',
+        borderColor: '#B5432F', borderWidth: 2,
       }],
     };
   };
@@ -368,33 +369,33 @@ const Reports = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-bush flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="animate-spin rounded-full h-10 w-10 border-[3px] border-gray-200 border-t-emerald-600" />
-          <p className="text-sm text-gray-400 font-medium">Loading report data…</p>
+          <div className="animate-spin rounded-full h-10 w-10 border-2 border-bush-line border-t-ochre" />
+          <p className="font-mono text-xs uppercase tracking-widest text-bone/40">Loading report data…</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50/80">
+    <div className="min-h-screen bg-bush text-bone font-body">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* ── Page Header ─────────────────────────────────────────────────────── */}
-        <div className="flex justify-between items-start mb-8">
+        <div className="flex justify-between items-start mb-8 flex-wrap gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-1 h-6 rounded-full bg-emerald-500" />
-              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">System Reports</h1>
+              <div className="w-1 h-6 bg-ochre" />
+              <h1 className="font-display text-2xl font-bold text-bone tracking-tight">System Reports</h1>
             </div>
-            <p className="text-sm text-gray-400 ml-3">
-              Analytics and trends · {new Date().toLocaleDateString('en-US', { dateStyle: 'long' })}
+            <p className="font-mono text-xs uppercase tracking-widest text-bone/40 ml-3">
+              Analytics and trends &middot; {new Date().toLocaleDateString('en-US', { dateStyle: 'long' })}
             </p>
           </div>
           <button
             onClick={handleDownloadPDF}
-            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition-colors duration-150"
+            className="flex items-center gap-2 bg-ochre hover:bg-[#dda054] text-bush px-4 py-2.5 font-mono text-xs uppercase tracking-widest font-semibold transition-colors duration-150 print:hidden"
           >
             <Download className="h-4 w-4" />
             Export PDF
@@ -406,22 +407,22 @@ const Reports = () => {
 
           {/* ── KPI Row ───────────────────────────────────────────────────────── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard icon={Eye}          iconBg="bg-emerald-50" iconColor="text-emerald-600" label="Total Sightings"       value={fmt(totalSightings)} sub="Across all observers"     />
-            <StatCard icon={Leaf}         iconBg="bg-blue-50"    iconColor="text-blue-600"    label="Animals Recorded"      value={fmt(totalAnimals)}   sub="Individual counts"         />
-            <StatCard icon={AlertOctagon} iconBg="bg-red-50"     iconColor="text-red-500"     label="Total Incidents"       value={fmt(totalIncidents)} sub="Reported events"           />
-            <StatCard icon={ShieldAlert}  iconBg="bg-amber-50"   iconColor="text-amber-500"   label="Critically Endangered" value={criticalCount}       sub="Species requiring action"  />
+            <StatCard icon={Eye}          iconColor="text-teal"  label="Total Sightings"       value={fmt(totalSightings)} sub="Across all observers"    />
+            <StatCard icon={Leaf}         iconColor="text-teal"  label="Animals Recorded"      value={fmt(totalAnimals)}   sub="Individual counts"        />
+            <StatCard icon={AlertOctagon} iconColor="text-rust"  label="Total Incidents"       value={fmt(totalIncidents)} sub="Reported events"          />
+            <StatCard icon={ShieldAlert}  iconColor="text-ochre" label="Critically Endangered" value={criticalCount}       sub="Species requiring action" />
           </div>
 
           {/* ── Section 1: Core Charts ─────────────────────────────────────────── */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <Card>
-              <CardHeader icon={Calendar} iconBg="bg-emerald-50" iconColor="text-emerald-600" title="Sighting Activity" subtitle="Monthly sighting count" />
+              <CardHeader icon={Calendar} iconColor="text-teal" title="Sighting Activity" subtitle="Monthly sighting count" />
               <div className="p-5 pt-4">
                 <div className="h-60"><Line options={lineOptions} data={getSightingLineData()} /></div>
               </div>
             </Card>
             <Card>
-              <CardHeader icon={AlertTriangle} iconBg="bg-red-50" iconColor="text-red-500" title="Incidents by Type" subtitle="Breakdown of reported event types" />
+              <CardHeader icon={AlertTriangle} iconColor="text-rust" title="Incidents by Type" subtitle="Breakdown of reported event types" />
               <div className="p-5 pt-4">
                 <div className="h-60"><Bar options={barOptions} data={getIncidentBarData()} /></div>
               </div>
@@ -431,29 +432,29 @@ const Reports = () => {
           {/* ── Species Distribution + Most Spotted ───────────────────────────── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             <Card>
-              <CardHeader icon={Layers} iconBg="bg-purple-50" iconColor="text-purple-600" title="Species Distribution" />
+              <CardHeader icon={Layers} iconColor="text-ochre" title="Species Distribution" />
               <div className="p-5 pt-4">
                 <div className="h-64"><Doughnut options={doughnutOptions} data={getCategoryDoughnutData()} /></div>
               </div>
             </Card>
 
             <Card className="lg:col-span-2">
-              <CardHeader icon={TrendingUp} iconBg="bg-emerald-50" iconColor="text-emerald-600" title="Most Spotted Species" subtitle="By sighting count" />
+              <CardHeader icon={TrendingUp} iconColor="text-teal" title="Most Spotted Species" subtitle="By sighting count" />
               <div className="p-5 pt-4 overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead>
-                    <tr className="border-b border-gray-100">
-                      <th className="pb-2 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Species</th>
-                      <th className="pb-2 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Sightings</th>
-                      <th className="pb-2 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Animals</th>
+                    <tr className="border-b border-bush-line">
+                      <th className="pb-2 text-left font-mono text-[10px] font-semibold text-bone/40 uppercase tracking-widest">Species</th>
+                      <th className="pb-2 text-right font-mono text-[10px] font-semibold text-bone/40 uppercase tracking-widest">Sightings</th>
+                      <th className="pb-2 text-right font-mono text-[10px] font-semibold text-bone/40 uppercase tracking-widest">Animals</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(sightingTrends?.topSpecies ?? []).map((s, i) => (
-                      <tr key={s.id} className={i % 2 !== 0 ? 'bg-gray-50/60' : ''}>
-                        <td className="py-3 pr-4 font-medium text-gray-800">{s.commonName}</td>
-                        <td className="py-3 pr-4 text-right text-gray-600">{fmt(s.sightingCount)}</td>
-                        <td className="py-3 text-right font-bold text-gray-900">{fmt(s.totalAnimals)}</td>
+                      <tr key={s.id} className="border-b border-bush-line last:border-0">
+                        <td className="py-3 pr-4 font-medium text-bone">{s.commonName}</td>
+                        <td className="py-3 pr-4 text-right font-mono text-bone/60">{fmt(s.sightingCount)}</td>
+                        <td className="py-3 text-right font-mono font-bold text-bone">{fmt(s.totalAnimals)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -464,20 +465,17 @@ const Reports = () => {
 
           {/* ── Top Contributors ───────────────────────────────────────────────── */}
           <Card>
-            <CardHeader icon={UserCheck} iconBg="bg-emerald-50" iconColor="text-emerald-600" title="Top Contributors" subtitle="Observers with most sightings" />
+            <CardHeader icon={UserCheck} iconColor="text-teal" title="Top Contributors" subtitle="Observers with most sightings" />
             <div className="p-5 pt-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {(sightingTrends?.activeObservers ?? []).slice(0, 4).map((obs, i) => (
-                  <div key={obs.id} className="flex items-center gap-3 p-3.5 rounded-xl bg-gray-50 hover:bg-emerald-50 border border-transparent hover:border-emerald-100 transition-all duration-150">
-                    <div className="relative shrink-0">
-                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-700 flex items-center justify-center text-white text-sm font-bold shadow-sm">
-                        {obs.firstName?.[0]}{obs.lastName?.[0]}
-                      </div>
-                      {i === 0 && <span className="absolute -top-1 -right-1 text-xs">🥇</span>}
+                  <div key={obs.id} className="flex items-center gap-3 p-3.5 border border-bush-line hover:border-ochre-dim transition-colors">
+                    <div className="shrink-0 h-9 w-9 border border-bush-line flex items-center justify-center font-mono text-xs font-bold text-ochre">
+                      {obs.firstName?.[0]}{obs.lastName?.[0]}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{obs.firstName} {obs.lastName}</p>
-                      <p className="text-xs text-emerald-600 font-medium">{obs.sightingCount} reports</p>
+                      <p className="text-sm font-semibold text-bone truncate">{obs.firstName} {obs.lastName}</p>
+                      <p className="font-mono text-[11px] text-teal">{obs.sightingCount} reports</p>
                     </div>
                   </div>
                 ))}
@@ -491,7 +489,7 @@ const Reports = () => {
           {/* ── Conservation Status + Species by Category ─────────────────────── */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <Card>
-              <CardHeader icon={Layers} iconBg="bg-blue-50" iconColor="text-blue-600" title="Species by Category" />
+              <CardHeader icon={Layers} iconColor="text-teal" title="Species by Category" />
               <div className="p-5 pt-4">
                 {speciesByCategory.length === 0 ? <EmptyState /> : (
                   <>
@@ -510,7 +508,7 @@ const Reports = () => {
             </Card>
 
             <Card>
-              <CardHeader icon={ShieldAlert} iconBg="bg-red-50" iconColor="text-red-500" title="Conservation Status" />
+              <CardHeader icon={ShieldAlert} iconColor="text-rust" title="Conservation Status" />
               <div className="p-5 pt-4">
                 {conservationStatus.length === 0 ? <EmptyState /> : (
                   <>
@@ -536,19 +534,19 @@ const Reports = () => {
 
           {/* ── Sightings Over Time ───────────────────────────────────────────── */}
           <Card>
-            <CardHeader icon={TrendingUp} iconBg="bg-emerald-50" iconColor="text-emerald-600" title="Sightings Over Time" subtitle="Last 12 months — sightings vs. animals counted" />
+            <CardHeader icon={TrendingUp} iconColor="text-teal" title="Sightings Over Time" subtitle="Last 12 months — sightings vs. animals counted" />
             <div className="p-5 pt-4">
               {monthlyTrends.length === 0 ? <EmptyState message="No trend data available" /> : (
                 <ResponsiveContainer width="100%" height={280}>
                   <LineChart data={monthlyTrends}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
-                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                    <YAxis yAxisId="left"  tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#3A4433" vertical={false} />
+                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#A8AE9C', fontFamily: 'IBM Plex Mono' }} axisLine={false} tickLine={false} />
+                    <YAxis yAxisId="left"  tick={{ fontSize: 11, fill: '#A8AE9C', fontFamily: 'IBM Plex Mono' }} axisLine={false} tickLine={false} />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: '#A8AE9C', fontFamily: 'IBM Plex Mono' }} axisLine={false} tickLine={false} />
                     <ReTooltip content={<CustomTooltip />} />
-                    <ReLegend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 12 }} />
-                    <ReLine yAxisId="left"  type="monotone" dataKey="sightings"    stroke="#059669" strokeWidth={2.5} dot={false} name="Sightings"     activeDot={{ r: 5 }} />
-                    <ReLine yAxisId="right" type="monotone" dataKey="totalAnimals" stroke="#2563EB" strokeWidth={2.5} strokeDasharray="5 5" dot={false} name="Total Animals" activeDot={{ r: 5 }} />
+                    <ReLegend iconType="square" iconSize={8} wrapperStyle={{ fontSize: 12, fontFamily: 'IBM Plex Mono', paddingTop: 12 }} />
+                    <ReLine yAxisId="left"  type="monotone" dataKey="sightings"    stroke="#4A7C7C" strokeWidth={2.5} dot={false} name="Sightings"     activeDot={{ r: 5 }} />
+                    <ReLine yAxisId="right" type="monotone" dataKey="totalAnimals" stroke="#C98A3E" strokeWidth={2.5} strokeDasharray="5 5" dot={false} name="Total Animals" activeDot={{ r: 5 }} />
                   </LineChart>
                 </ResponsiveContainer>
               )}
@@ -558,7 +556,7 @@ const Reports = () => {
           {/* ── Top 5 Species + Incidents by Type ────────────────────────────── */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <Card>
-              <CardHeader icon={Eye} iconBg="bg-blue-50" iconColor="text-blue-600" title="Top 5 Most Sighted Species" />
+              <CardHeader icon={Eye} iconColor="text-teal" title="Top 5 Most Sighted Species" />
               <div className="p-5 pt-4">
                 {topSpecies.length === 0 ? <EmptyState /> : (
                   <div className="space-y-3">
@@ -566,17 +564,17 @@ const Reports = () => {
                       const { bg, text } = getRankStyle(i);
                       return (
                         <div key={i} className="flex items-center gap-3">
-                          <span className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold shrink-0 ${bg} ${text}`}>
+                          <span className={`flex items-center justify-center w-6 h-6 font-mono text-xs font-bold shrink-0 ${bg} ${text}`}>
                             {i + 1}
                           </span>
                           <div className="flex-1 min-w-0">
                             <div className="flex justify-between items-center mb-1">
-                              <span className="text-sm font-medium text-gray-700 truncate">{sp.name}</span>
-                              <span className="text-sm font-bold text-gray-900 ml-2 shrink-0">{fmt(sp.sightings)}</span>
+                              <span className="text-sm font-medium text-bone/80 truncate">{sp.name}</span>
+                              <span className="font-mono text-sm font-bold text-bone ml-2 shrink-0">{fmt(sp.sightings)}</span>
                             </div>
-                            <div className="w-full h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                            <div className="w-full h-1.5 bg-bush overflow-hidden">
                               <div
-                                className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600"
+                                className="h-full bg-teal"
                                 style={{ width: `${(sp.sightings / maxSightings) * 100}%` }}
                               />
                             </div>
@@ -590,17 +588,17 @@ const Reports = () => {
             </Card>
 
             <Card>
-              <CardHeader icon={AlertTriangle} iconBg="bg-red-50" iconColor="text-red-500" title="Incidents by Type" />
+              <CardHeader icon={AlertTriangle} iconColor="text-rust" title="Incidents by Type" />
               <div className="p-5 pt-4">
                 {incidentByType.length === 0 ? <EmptyState /> : (
                   <ResponsiveContainer width="100%" height={240}>
                     <BarChart data={incidentByType} barSize={28}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
-                      <XAxis dataKey="name" angle={-30} textAnchor="end" height={70} tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#3A4433" vertical={false} />
+                      <XAxis dataKey="name" angle={-30} textAnchor="end" height={70} tick={{ fontSize: 11, fill: '#A8AE9C', fontFamily: 'IBM Plex Mono' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 11, fill: '#A8AE9C', fontFamily: 'IBM Plex Mono' }} axisLine={false} tickLine={false} />
                       <ReTooltip content={<CustomTooltip />} />
-                      <ReBar dataKey="count" name="Count" radius={[6, 6, 0, 0]}>
-                        {incidentByType.map((_, i) => <Cell key={i} fill={i % 2 === 0 ? '#EF4444' : '#F87171'} />)}
+                      <ReBar dataKey="count" name="Count">
+                        {incidentByType.map((_, i) => <Cell key={i} fill={i % 2 === 0 ? '#B5432F' : '#8C6229'} />)}
                       </ReBar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -612,16 +610,16 @@ const Reports = () => {
           {/* ── Incident Trends + Severity ────────────────────────────────────── */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <Card>
-              <CardHeader icon={TrendingUp} iconBg="bg-red-50" iconColor="text-red-500" title="Incident Trends" subtitle="Last 12 months" />
+              <CardHeader icon={TrendingUp} iconColor="text-rust" title="Incident Trends" subtitle="Last 12 months" />
               <div className="p-5 pt-4">
                 {incidentMonthly.length === 0 ? <EmptyState message="No trend data available" /> : (
                   <ResponsiveContainer width="100%" height={240}>
                     <LineChart data={incidentMonthly}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
-                      <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#3A4433" vertical={false} />
+                      <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#A8AE9C', fontFamily: 'IBM Plex Mono' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 11, fill: '#A8AE9C', fontFamily: 'IBM Plex Mono' }} axisLine={false} tickLine={false} />
                       <ReTooltip content={<CustomTooltip />} />
-                      <ReLine type="monotone" dataKey="count" stroke="#EF4444" strokeWidth={2.5} dot={false} name="Incidents" activeDot={{ r: 5 }} />
+                      <ReLine type="monotone" dataKey="count" stroke="#B5432F" strokeWidth={2.5} dot={false} name="Incidents" activeDot={{ r: 5 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 )}
@@ -629,7 +627,7 @@ const Reports = () => {
             </Card>
 
             <Card>
-              <CardHeader icon={AlertOctagon} iconBg="bg-orange-50" iconColor="text-orange-500" title="Incidents by Severity" />
+              <CardHeader icon={AlertOctagon} iconColor="text-ochre" title="Incidents by Severity" />
               <div className="p-5 pt-4">
                 {incidentBySeverity.length === 0 ? <EmptyState /> : (
                   <>
@@ -651,7 +649,7 @@ const Reports = () => {
           {/* ── Users by Role + Active Observers ─────────────────────────────── */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <Card>
-              <CardHeader icon={UserCheck} iconBg="bg-purple-50" iconColor="text-purple-600" title="Users by Role" />
+              <CardHeader icon={UserCheck} iconColor="text-ochre" title="Users by Role" />
               <div className="p-5 pt-4">
                 {userRoleBreakdown.length === 0 ? <EmptyState /> : (
                   <>
@@ -670,7 +668,7 @@ const Reports = () => {
             </Card>
 
             <Card>
-              <CardHeader icon={UserCheck} iconBg="bg-emerald-50" iconColor="text-emerald-600" title="Most Active Observers" subtitle="Ranked by sighting count" />
+              <CardHeader icon={UserCheck} iconColor="text-teal" title="Most Active Observers" subtitle="Ranked by sighting count" />
               <div className="p-5 pt-4">
                 {activeObservers.length === 0 ? <EmptyState /> : (
                   <div className="space-y-3">
@@ -678,16 +676,16 @@ const Reports = () => {
                       const { bg, text } = getRankStyle(i);
                       return (
                         <div key={obs.id} className="flex items-center gap-3">
-                          <span className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold shrink-0 ${bg} ${text}`}>
+                          <span className={`flex items-center justify-center w-7 h-7 font-mono text-xs font-bold shrink-0 ${bg} ${text}`}>
                             {i + 1}
                           </span>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 truncate">{obs.firstName} {obs.lastName}</p>
-                            <p className="text-xs text-gray-400 capitalize">{obs.role}</p>
+                            <p className="text-sm font-semibold text-bone truncate">{obs.firstName} {obs.lastName}</p>
+                            <p className="font-mono text-[10px] uppercase tracking-widest text-bone/40">{obs.role}</p>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="text-sm font-bold text-emerald-600">{fmt(obs.sightingCount)}</p>
-                            <p className="text-xs text-gray-400">sightings</p>
+                            <p className="font-mono text-sm font-bold text-teal">{fmt(obs.sightingCount)}</p>
+                            <p className="font-mono text-[10px] uppercase tracking-widest text-bone/30">sightings</p>
                           </div>
                         </div>
                       );
@@ -700,46 +698,46 @@ const Reports = () => {
 
           {/* ── IoT Sensor Activity ────────────────────────────────────────────── */}
           <Card>
-            <CardHeader icon={Cpu} iconBg="bg-blue-50" iconColor="text-blue-600" title="IoT Sensor Activity" subtitle={`${sensorSummary.length} active sensors`} />
+            <CardHeader icon={Cpu} iconColor="text-ochre" title="IoT Sensor Activity" subtitle={`${sensorSummary.length} active sensors`} />
             <div className="p-5 pt-4 overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100">
+                  <tr className="border-b border-bush-line">
                     {['Sensor ID', 'Type', 'Data Points', 'Battery', 'Last Reading'].map(h => (
-                      <th key={h} className="pb-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pr-6">{h}</th>
+                      <th key={h} className="pb-3 text-left font-mono text-[10px] font-semibold text-bone/40 uppercase tracking-widest pr-6">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {sensorSummary.length === 0 ? (
-                    <tr><td colSpan={5} className="py-10 text-center text-gray-400 text-sm">No sensor data available</td></tr>
-                  ) : sensorSummary.map((sensor, i) => {
+                    <tr><td colSpan={5} className="py-10 text-center font-mono text-xs uppercase tracking-widest text-bone/30">No sensor data available</td></tr>
+                  ) : sensorSummary.map((sensor) => {
                     const battery    = Math.round(sensor.avgBattery);
                     const lastSeen   = new Date(sensor.lastReading);
                     const minutesAgo = Math.round((Date.now() - lastSeen) / 60000);
                     const bc         = getBatteryStyle(battery);
                     return (
-                      <tr key={sensor.sensorId} className={`${i % 2 !== 0 ? 'bg-gray-50/60' : ''} hover:bg-emerald-50/40 transition-colors`}>
-                        <td className="py-3 pr-6 font-mono text-xs font-semibold text-gray-700">{sensor.sensorId}</td>
+                      <tr key={sensor.sensorId} className="border-b border-bush-line last:border-0 hover:bg-bush transition-colors">
+                        <td className="py-3 pr-6 font-mono text-xs font-semibold text-bone">{sensor.sensorId}</td>
                         <td className="py-3 pr-6">
-                          <span className="px-2 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700">{sensor.deviceType}</span>
+                          <span className="px-2 py-1 font-mono text-[10px] uppercase tracking-widest border border-ochre-dim text-ochre">{sensor.deviceType}</span>
                         </td>
                         <td className="py-3 pr-6">
-                          <div className="flex items-center gap-1.5 text-gray-600">
-                            <Zap className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                          <div className="flex items-center gap-1.5 font-mono text-bone/60">
+                            <Zap className="h-3.5 w-3.5 text-bone/30 shrink-0" />
                             <span className="font-medium">{fmt(parseInt(sensor.dataPoints))}</span>
                           </div>
                         </td>
                         <td className="py-3 pr-6">
                           <div className="flex items-center gap-2">
-                            <div className="w-16 h-1.5 rounded-full bg-gray-100 overflow-hidden shrink-0">
-                              <div className={`h-full rounded-full ${bc.bar}`} style={{ width: `${battery}%` }} />
+                            <div className="w-16 h-1.5 bg-bush overflow-hidden shrink-0">
+                              <div className={`h-full ${bc.bar}`} style={{ width: `${battery}%` }} />
                             </div>
-                            <span className={`text-xs font-bold shrink-0 ${bc.text}`}>{battery}%</span>
+                            <span className={`font-mono text-xs font-bold shrink-0 ${bc.text}`}>{battery}%</span>
                           </div>
                         </td>
                         <td className="py-3">
-                          <div className="flex items-center gap-1.5 text-gray-500 text-xs">
+                          <div className="flex items-center gap-1.5 font-mono text-bone/40 text-xs">
                             <Clock className="h-3 w-3 shrink-0" />
                             {minutesAgo < 60
                               ? `${minutesAgo}m ago`
@@ -758,27 +756,27 @@ const Reports = () => {
 
           {/* ── Endangered Species Monitor ─────────────────────────────────────── */}
           <Card>
-            <CardHeader icon={ShieldAlert} iconBg="bg-red-50" iconColor="text-red-500" title="Endangered Species Monitor" subtitle={`${endangeredList.length} species tracked`} />
+            <CardHeader icon={ShieldAlert} iconColor="text-rust" title="Endangered Species Monitor" subtitle={`${endangeredList.length} species tracked`} />
             <div className="p-5 pt-4 overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100">
+                  <tr className="border-b border-bush-line">
                     {['Common Name', 'Scientific Name', 'Category', 'Status', 'Population', 'Sightings'].map(h => (
-                      <th key={h} className="pb-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pr-6">{h}</th>
+                      <th key={h} className="pb-3 text-left font-mono text-[10px] font-semibold text-bone/40 uppercase tracking-widest pr-6">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {endangeredList.length === 0 ? (
-                    <tr><td colSpan={6} className="py-10 text-center text-gray-400 text-sm">No data available</td></tr>
-                  ) : endangeredList.map((sp, i) => (
-                    <tr key={sp.id} className={`${i % 2 !== 0 ? 'bg-gray-50/60' : ''} hover:bg-red-50/40 transition-colors`}>
-                      <td className="py-3 pr-6 font-semibold text-gray-800">{sp.commonName}</td>
-                      <td className="py-3 pr-6 italic text-gray-400 text-xs">{sp.scientificName}</td>
-                      <td className="py-3 pr-6 text-gray-600">{sp.category}</td>
+                    <tr><td colSpan={6} className="py-10 text-center font-mono text-xs uppercase tracking-widest text-bone/30">No data available</td></tr>
+                  ) : endangeredList.map((sp) => (
+                    <tr key={sp.id} className="border-b border-bush-line last:border-0 hover:bg-bush transition-colors">
+                      <td className="py-3 pr-6 font-semibold text-bone">{sp.commonName}</td>
+                      <td className="py-3 pr-6 italic font-mono text-bone/40 text-xs">{sp.scientificName}</td>
+                      <td className="py-3 pr-6 text-bone/70">{sp.category}</td>
                       <td className="py-3 pr-6"><StatusBadge status={sp.conservationStatus} /></td>
-                      <td className="py-3 pr-6 text-gray-700">{sp.population != null ? fmt(sp.population) : '—'}</td>
-                      <td className="py-3 font-medium text-gray-700">{sp.recentSightings ?? 0}</td>
+                      <td className="py-3 pr-6 font-mono text-bone/70">{sp.population != null ? fmt(sp.population) : '—'}</td>
+                      <td className="py-3 font-mono font-medium text-bone/70">{sp.recentSightings ?? 0}</td>
                     </tr>
                   ))}
                 </tbody>
