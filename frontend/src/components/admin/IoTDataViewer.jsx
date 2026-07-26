@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, RefreshCw, Table, Map as MapIcon, Play, Square } from 'lucide-react';
+import { Activity, RefreshCw, Table, Map as MapIcon, Play, Square, Eraser } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -128,6 +128,12 @@ const IoTDataViewer = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Clears what's shown locally only — does not touch the database.
+  // Next auto-refresh (15s) or manual Refresh click will repopulate from the DB.
+  const handleClearView = () => {
+    setIotData([]);
+  };
+
   // One marker per sensor — always the freshest reading
   const latestPerSensor = deduplicateBySensor(iotData);
 
@@ -192,6 +198,16 @@ const IoTDataViewer = () => {
           >
             <RefreshCw className={`h-3.5 w-3.5 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
+          </button>
+
+          <button
+            onClick={handleClearView}
+            disabled={iotData.length === 0}
+            title="Clears this view only — stored data is untouched"
+            className="flex items-center px-4 py-2 border border-bush-line text-bone/50 font-mono text-[11px] uppercase tracking-widest hover:text-bone hover:border-bone/40 disabled:opacity-30 disabled:hover:text-bone/50 disabled:hover:border-bush-line transition-colors"
+          >
+            <Eraser className="h-3.5 w-3.5 mr-2" />
+            Clear View
           </button>
         </div>
       </div>
