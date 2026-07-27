@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Activity, RefreshCw, Table, Map as MapIcon, Play, Square, Eraser } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -80,7 +80,12 @@ const IoTDataViewer = () => {
   const [simRunning, setSimRunning] = useState(false);
   const [simLoading, setSimLoading] = useState(false);
 
+  // Tracks whether the user cleared the view — a ref (not state) because the
+  // 15s interval's closure needs the current value without re-subscribing.
+  const viewClearedRef = useRef(false);
+
   const fetchData = async () => {
+    viewClearedRef.current = false; // any explicit/manual fetch un-clears the view
     setLoading(true);
     try {
       // Fetch enough rows to guarantee we get the latest per sensor
@@ -111,7 +116,13 @@ const IoTDataViewer = () => {
     try {
       const response = await api.post('/simulation/toggle');
       if (response.data.success) {
-        setSimRunning(response.data.data.running);
+        const nowRunning = response.data.data.running;
+        setSimRunning(nowRunning);
+        if (nowRunning) {
+          // Starting the sim is a deliberate signal the user wants live data again
+          viewClearedRef.current = false;
+          fetchData();
+        }
       }
     } catch (error) {
       console.error('Failed to toggle simulation:', error);
@@ -124,14 +135,20 @@ const IoTDataViewer = () => {
   useEffect(() => {
     fetchData();
     fetchSimStatus();
-    const interval = setInterval(fetchData, 15000);
+    const interval = setInterval(() => {
+      // Respect a cleared view — don't silently repopulate it every 15s
+      if (!viewClearedRef.current) {
+        fetchData();
+      }
+    }, 15000);
     return () => clearInterval(interval);
   }, []);
 
   // Clears what's shown locally only — does not touch the database.
-  // Next auto-refresh (15s) or manual Refresh click will repopulate from the DB.
+  // Stays cleared until you click Refresh or Start Simulation.
   const handleClearView = () => {
     setIotData([]);
+    viewClearedRef.current = true;
   };
 
   // One marker per sensor — always the freshest reading
