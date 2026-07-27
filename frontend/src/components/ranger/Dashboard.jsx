@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Eye, AlertTriangle, Plus, List, Map } from 'lucide-react';
 import Navbar from '../shared/Navbar';
 import authService from '../../services/auth';
@@ -7,6 +7,30 @@ import api from '../../services/api';
 const inputClass =
   'mt-1 block w-full px-3 py-2 bg-bush border border-bush-line text-bone text-sm focus:outline-none focus:border-ochre placeholder:text-bone/30';
 const labelClass = 'block font-mono text-[10px] uppercase tracking-widest text-bone/50';
+
+// Minimal "reveal" scroll — only moves the page if the bottom of the form
+// (e.g. the submit button) is actually cut off below the viewport, and only
+// by exactly that much. If the form already fits on screen, nothing moves.
+const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+const revealFormBottom = (el, duration = 350, margin = 24) => {
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  const overflow = rect.bottom - window.innerHeight + margin;
+  if (overflow <= 0) return; // fully visible already — don't scroll at all
+
+  const startY = window.pageYOffset;
+  const targetY = startY + overflow;
+
+  let startTime;
+  const step = (timestamp) => {
+    if (!startTime) startTime = timestamp;
+    const progress = Math.min((timestamp - startTime) / duration, 1);
+    window.scrollTo(0, startY + overflow * easeInOutCubic(progress));
+    if (progress < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+};
 
 const RangerDashboard = () => {
   const user = authService.getCurrentUser();
@@ -17,6 +41,7 @@ const RangerDashboard = () => {
   const [activeView, setActiveView] = useState('overview');
   const [showSightingForm, setShowSightingForm] = useState(false);
   const [showIncidentForm, setShowIncidentForm] = useState(false);
+  const formSectionRef = useRef(null);
   
   const [sightingForm, setSightingForm] = useState({
     speciesId: '',
@@ -40,6 +65,32 @@ const RangerDashboard = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Opening either form closes the other — a ranger only fills one at a time.
+  const handleToggleSightingForm = () => {
+    if (showSightingForm) {
+      setShowSightingForm(false);
+    } else {
+      setShowIncidentForm(false);
+      setShowSightingForm(true);
+    }
+  };
+
+  const handleToggleIncidentForm = () => {
+    if (showIncidentForm) {
+      setShowIncidentForm(false);
+    } else {
+      setShowSightingForm(false);
+      setShowIncidentForm(true);
+    }
+  };
+
+  // Reveal the bottom of whichever form just opened, only if it's cut off
+  useEffect(() => {
+    if (showSightingForm || showIncidentForm) {
+      requestAnimationFrame(() => revealFormBottom(formSectionRef.current));
+    }
+  }, [showSightingForm, showIncidentForm]);
 
   const fetchData = async () => {
     try {
@@ -166,7 +217,7 @@ const RangerDashboard = () => {
         {/* Action Buttons */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           <button
-            onClick={() => setShowSightingForm(!showSightingForm)}
+            onClick={handleToggleSightingForm}
             className="bg-ochre text-bush p-6 hover:bg-[#dda054] transition-colors flex items-center justify-center gap-3"
           >
             <Plus className="h-5 w-5" />
@@ -174,13 +225,16 @@ const RangerDashboard = () => {
           </button>
 
           <button
-            onClick={() => setShowIncidentForm(!showIncidentForm)}
+            onClick={handleToggleIncidentForm}
             className="border border-rust text-rust p-6 hover:bg-rust hover:text-bush transition-colors flex items-center justify-center gap-3"
           >
             <AlertTriangle className="h-5 w-5" />
             <span className="font-mono text-sm uppercase tracking-widest font-semibold">Report Incident</span>
           </button>
         </div>
+
+        {/* Sighting / Incident form section — only one renders at a time, ref used to scroll here on open */}
+        <div ref={formSectionRef}>
 
         {/* Sighting Form */}
         {showSightingForm && (
@@ -385,6 +439,9 @@ const RangerDashboard = () => {
             </form>
           </div>
         )}
+
+        </div>
+        {/* end form section */}
 
         {/* Recent Activity */}
         <div className="border border-bush-line bg-bush-surface p-6">
