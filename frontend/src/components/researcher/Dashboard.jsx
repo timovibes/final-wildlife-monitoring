@@ -31,12 +31,21 @@ const ResearcherDashboard = () => {
 
   // Field-ops palette for charts (recharts needs literal hex, not Tailwind classes)
   const COLORS     = ['#C98A3E', '#4A7C7C', '#8C6229', '#6B8E8E', '#A8AE9C'];
+
+  // Species.conservationStatus is stored as short IUCN codes (LC, NT, VU, EN,
+  // CR, EW, EX) — these keys must match those codes, not full English words.
+  const STATUS_LABELS = {
+    LC: 'Least Concern', NT: 'Near Threatened', VU: 'Vulnerable',
+    EN: 'Endangered', CR: 'Critically Endangered', EW: 'Extinct in Wild', EX: 'Extinct',
+  };
   const CON_COLORS = {
-    'Critically Endangered': '#B5432F', // rust — reserved for the most severe status
-    'Endangered':            '#C98A3E', // ochre
-    'Vulnerable':             '#8C6229', // ochre-dim
-    'Near Threatened':       '#6B8E8E', // light teal
-    'Least Concern':         '#4A7C7C', // teal
+    CR: '#B5432F', // rust — reserved for the most severe status
+    EW: '#B5432F',
+    EX: '#3A4433',
+    EN: '#C98A3E', // ochre
+    VU: '#8C6229',
+    NT: '#6B8E8E',
+    LC: '#4A7C7C', // teal
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -324,7 +333,7 @@ const ResearcherDashboard = () => {
                           className="inline-block w-2.5 h-2.5 mr-2"
                           style={{ backgroundColor: CON_COLORS[entry.name] || COLORS[index % COLORS.length] }}
                         />
-                        <span className="text-bone/60">{entry.name}</span>
+                        <span className="text-bone/60">{STATUS_LABELS[entry.name] || entry.name}</span>
                       </div>
                       <span className="font-semibold text-bone">{entry.value}</span>
                     </div>
@@ -445,7 +454,7 @@ const ResearcherDashboard = () => {
                             color: CON_COLORS[sp.conservationStatus] || '#A8AE9C',
                           }}
                         >
-                          {sp.conservationStatus}
+                          {STATUS_LABELS[sp.conservationStatus] || sp.conservationStatus}
                         </span>
                       </td>
                       <td className="px-4 py-3 font-mono text-bone/70">

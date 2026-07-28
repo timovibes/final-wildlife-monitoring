@@ -115,7 +115,7 @@ const handleSubmit = async (e) => {
                   <td className="px-6 py-4 whitespace-nowrap font-mono text-xs italic text-bone/50">{item.scientificName}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 font-mono text-[10px] uppercase tracking-widest border ${
-                      item.conservationStatus === 'Endangered'
+                      ['EN', 'CR', 'EW'].includes(item.conservationStatus)
                         ? 'border-rust text-rust'
                         : 'border-teal text-teal'
                     }`}>

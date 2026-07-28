@@ -29,12 +29,26 @@ ChartJS.register(
 // ─── Constants — field-ops palette (recharts/Chart.js need literal hex) ───────
 const PALETTE = ['#C98A3E', '#4A7C7C', '#8C6229', '#6B8E8E', '#B5432F', '#A8AE9C'];
 
+// Species.conservationStatus is stored as short IUCN codes (see models/Species.js
+// ENUM), not full English words — these keys MUST match those codes exactly.
+const STATUS_LABELS = {
+  LC: 'Least Concern',
+  NT: 'Near Threatened',
+  VU: 'Vulnerable',
+  EN: 'Endangered',
+  CR: 'Critically Endangered',
+  EW: 'Extinct in Wild',
+  EX: 'Extinct',
+};
+
 const CON_COLORS = {
-  'Critically Endangered': '#B5432F',
-  'Endangered':            '#C98A3E',
-  'Vulnerable':            '#8C6229',
-  'Near Threatened':       '#6B8E8E',
-  'Least Concern':         '#4A7C7C',
+  CR: '#B5432F', // rust — most severe
+  EW: '#B5432F',
+  EX: '#3A4433',
+  EN: '#C98A3E', // ochre
+  VU: '#8C6229',
+  NT: '#6B8E8E',
+  LC: '#4A7C7C', // teal
 };
 
 const SEVERITY_COLORS = ['#B5432F', '#C98A3E', '#8C6229', '#4A7C7C'];
@@ -143,7 +157,7 @@ const StatusBadge = ({ status }) => {
       className="inline-flex items-center px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest border"
       style={{ borderColor: color, color }}
     >
-      {status}
+      {STATUS_LABELS[status] || status}
     </span>
   );
 };
@@ -362,7 +376,7 @@ const Reports = () => {
   const totalSightings = monthlyTrends.reduce((s, m) => s + m.sightings, 0);
   const totalAnimals   = monthlyTrends.reduce((s, m) => s + m.totalAnimals, 0);
   const totalIncidents = incidentMonthly.reduce((s, m) => s + m.count, 0);
-  const criticalCount  = conservationStatus.find(s => s.name === 'Critically Endangered')?.value ?? 0;
+  const criticalCount  = conservationStatus.find(s => s.name === 'CR')?.value ?? 0;
   const maxSightings   = topSpecies.length > 0 ? Math.max(...topSpecies.map(s => s.sightings)) : 1;
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -523,7 +537,7 @@ const Reports = () => {
                       </PieChart>
                     </ResponsiveContainer>
                     <PieLegend
-                      data={conservationStatus}
+                      data={conservationStatus.map(e => ({ ...e, name: STATUS_LABELS[e.name] || e.name }))}
                       colors={conservationStatus.map((e, i) => CON_COLORS[e.name] ?? PALETTE[i % PALETTE.length])}
                     />
                   </>
