@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import {
   TrendingUp, Layers, Eye, AlertTriangle,
-  Radio, Zap, ShieldAlert, Users, Battery, Clock
+  Radio, Zap, ShieldAlert, Users, Battery, Clock, Gauge
 } from 'lucide-react';
 import Navbar from '../shared/Navbar';
 import authService from '../../services/auth';
@@ -28,6 +28,10 @@ const ResearcherDashboard = () => {
   const [conservationStatus, setConservationStatus] = useState([]); // status breakdown
   const [sensorSummary, setSensorSummary]         = useState([]);   // IoT table
   const [endangeredList, setEndangeredList]       = useState([]);   // endangered species
+
+  // ── Risk score state ────────────────────────────────────────────────────────
+  const [riskScores, setRiskScores]         = useState([]);
+  const [riskScoreError, setRiskScoreError] = useState(null);
 
   // Field-ops palette for charts (recharts needs literal hex, not Tailwind classes)
   const COLORS     = ['#C98A3E', '#4A7C7C', '#8C6229', '#6B8E8E', '#A8AE9C'];
@@ -132,6 +136,18 @@ const ResearcherDashboard = () => {
       console.error('Failed to fetch data:', error);
     } finally {
       setLoading(false);
+    }
+
+    // ── Risk score (separate try/catch so a down ML service doesn't break the rest of the dashboard) ──
+    try {
+      const riskRes = await api.get('/ml/risk-score');
+      if (riskRes.data.success) {
+        setRiskScores(riskRes.data.data.scores);
+        setRiskScoreError(null);
+      }
+    } catch (err) {
+      console.error('Risk score fetch failed:', err);
+      setRiskScoreError(err.response?.data?.message || 'ML scoring service unavailable.');
     }
   };
 
@@ -413,6 +429,57 @@ const ResearcherDashboard = () => {
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* ── Conservation Risk Score ──────────────────────────────────────── */}
+        <div className="border border-bush-line bg-bush-surface p-6 mb-8">
+          <div className="flex items-center mb-4">
+            <Gauge className="h-4 w-4 text-rust mr-2" />
+            <h2 className="font-display text-base font-semibold">Conservation Risk Score</h2>
+            <span className="ml-2 font-mono text-[11px] text-bone/40">ML-computed, updates on refresh</span>
+          </div>
+
+          {riskScoreError ? (
+            <p className="text-center font-mono text-xs uppercase tracking-widest text-rust py-8">{riskScoreError}</p>
+          ) : riskScores.length === 0 ? (
+            <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-8">No risk data available</p>
+          ) : (
+            <div className="overflow-x-auto border border-bush-line">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-bush-line bg-bush">
+                    {['Species', 'Status', 'Risk Score', 'Risk Level', 'Trend'].map(h => (
+                      <th key={h} className="px-4 py-3 text-left font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-bush-line">
+                  {riskScores.slice(0, 10).map((s) => (
+                    <tr key={s.speciesId} className="hover:bg-bush transition-colors">
+                      <td className="px-4 py-3 font-medium">{s.commonName}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-bone/60">{s.conservationStatus}</td>
+                      <td className="px-4 py-3 font-mono font-bold">{s.riskScore}</td>
+                      <td className="px-4 py-3">
+                        <span className={`font-mono text-[10px] uppercase tracking-widest px-2 py-1 border ${
+                          s.riskLevel === 'Critical' ? 'border-rust text-rust' :
+                          s.riskLevel === 'High' ? 'border-ochre text-ochre' :
+                          s.riskLevel === 'Medium' ? 'border-ochre-dim text-ochre' :
+                          'border-teal text-teal'
+                        }`}>
+                          {s.riskLevel}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-bone/50">
+                        {s.breakdown.sightingTrendSlope == null ? 'Insufficient data' :
+                          s.breakdown.sightingTrendSlope < 0 ? 'Declining' :
+                          s.breakdown.sightingTrendSlope > 0 ? 'Rising' : 'Flat'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* ── Endangered Species List ────────────────────────────────────────── */}
