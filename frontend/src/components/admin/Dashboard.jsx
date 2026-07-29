@@ -102,6 +102,32 @@ const AdminDashboard = () => {
           </p>
         </div>
 
+        {/* Quick Actions — moved above the fold so Manage Species/Users and
+            Reports are reachable without scrolling (GitHub issue #5) */}
+        <div className="border border-bush-line bg-bush-surface p-6 mb-8">
+          <h2 className="font-display text-base font-semibold mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <button 
+              onClick={() => navigate('/admin/users')} 
+              className="p-4 border border-dashed border-bush-line hover:border-ochre hover:bg-bush transition-colors">
+              <Users className="h-6 w-6 text-bone/40 mx-auto mb-2" />
+              <p className="font-mono text-[11px] uppercase tracking-widest text-bone/70">Manage Users</p>
+            </button>
+            <button 
+              onClick={() => navigate('/admin/species')}
+              className="p-4 border border-dashed border-bush-line hover:border-ochre hover:bg-bush transition-colors">
+              <Layers className="h-6 w-6 text-bone/40 mx-auto mb-2" />
+              <p className="font-mono text-[11px] uppercase tracking-widest text-bone/70">Manage Species</p>
+            </button>
+            <button 
+              onClick={() => navigate('/reports')}
+              className="p-4 border border-dashed border-bush-line hover:border-ochre hover:bg-bush transition-colors">
+              <TrendingUp className="h-6 w-6 text-bone/40 mx-auto mb-2" />
+              <p className="font-mono text-[11px] uppercase tracking-widest text-bone/70">View Reports</p>
+            </button>
+          </div>
+        </div>
+
         {/* Statistics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard
@@ -308,33 +334,6 @@ const AdminDashboard = () => {
           </div>
         </div>
         <IoTDataViewer />
-        
-          
-
-        {/* Quick Actions */}
-        <div className="border border-bush-line bg-bush-surface p-6 mt-8">
-          <h2 className="font-display text-base font-semibold mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button 
-              onClick={() => navigate('/admin/users')} 
-              className="p-4 border border-dashed border-bush-line hover:border-ochre hover:bg-bush transition-colors">
-              <Users className="h-6 w-6 text-bone/40 mx-auto mb-2" />
-              <p className="font-mono text-[11px] uppercase tracking-widest text-bone/70">Manage Users</p>
-            </button>
-            <button 
-              onClick={() => navigate('/admin/species')}
-              className="p-4 border border-dashed border-bush-line hover:border-ochre hover:bg-bush transition-colors">
-              <Layers className="h-6 w-6 text-bone/40 mx-auto mb-2" />
-              <p className="font-mono text-[11px] uppercase tracking-widest text-bone/70">Manage Species</p>
-            </button>
-            <button 
-              onClick={() => navigate('/reports')}
-              className="p-4 border border-dashed border-bush-line hover:border-ochre hover:bg-bush transition-colors">
-              <TrendingUp className="h-6 w-6 text-bone/40 mx-auto mb-2" />
-              <p className="font-mono text-[11px] uppercase tracking-widest text-bone/70">View Reports</p>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
