@@ -75,7 +75,7 @@ router.get('/risk-score', authMiddleware, async (req, res) => {
 
     let mlResponse;
     try {
-      mlResponse = await axios.post(`${ML_SERVICE_URL}/risk-score`, payload, { timeout: 8000 });
+      mlResponse = await axios.post(`${ML_SERVICE_URL}/risk-score`, payload, { timeout: 25000 });
     } catch (mlError) {
       console.error('ML service call failed:', mlError.message);
       return res.status(503).json({

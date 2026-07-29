@@ -118,5 +118,6 @@ def risk_score():
 
 
 if __name__ == '__main__':
+    is_dev = os.environ.get('FLASK_ENV', 'production') == 'development'
     print(f'Conservation Risk Score ML service running on port {PORT}')
-    app.run(host='0.0.0.0', port=PORT, debug=True)
+    app.run(host='0.0.0.0', port=PORT, debug=is_dev)
