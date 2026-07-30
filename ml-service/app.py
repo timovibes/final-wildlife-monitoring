@@ -13,9 +13,10 @@ import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from sklearn.linear_model import LinearRegression
+from sklearn.cluster import DBSCAN
+from sklearn.ensemble import IsolationForest
 import numpy as np
 from dotenv import load_dotenv
-from sklearn.cluster import DBSCAN
 
 load_dotenv()
 
@@ -135,20 +136,9 @@ def risk_score():
 #   cluster together. Sightings with too few neighbors are labelled "noise"
 #   (-1) — one-off sightings that aren't part of any hotspot.
 #
-#   This fits the problem well because:
-#     - We have no idea in advance how many real hotspots exist in the park
-#     - Hotspots can be irregular shapes (a river bank, a valley), not
-#       forced into circles like k-means would
-#     - Isolated one-off sightings are automatically excluded instead of
-#       dragging cluster centers toward outliers
-#
 # Coordinate note (important for presenting this):
 #   `eps` here is in degrees of latitude/longitude, not meters — at
-#   Nairobi's latitude, roughly 1 degree ≈ 111km, so eps=0.01 ≈ ~1.1km.
-#   This is a reasonable approximation for a single park-sized area. A
-#   system covering a much larger area (spanning many degrees of latitude)
-#   would need to convert to true great-circle (haversine) distance first,
-#   since degrees of longitude compress toward the poles.
+#   Nairobi's latitude, roughly 1 degree ≈ 111km, so eps=0.003 ≈ ~330m.
 # ═══════════════════════════════════════════════════════════════════════════
 
 @app.route('/cluster-hotspots', methods=['POST'])
@@ -156,23 +146,13 @@ def cluster_hotspots():
     body = request.get_json(force=True)
     sightings = body.get('sightings', [])
 
-    # eps: how close (in degrees) two sightings need to be to count as
-    #      "neighbors". min_samples: how many neighbors are needed before
-    #      a point is considered part of a dense region (a hotspot) rather
-    #      than noise. Both are tunable — smaller eps / higher min_samples
-    #      = stricter, fewer but more confident hotspots.
     eps = float(body.get('eps', 0.01))
     min_samples = int(body.get('minSamples', 3))
 
     if not sightings:
         return jsonify({'success': True, 'data': {'clusters': [], 'noiseCount': 0}})
 
-    # DBSCAN expects a 2D array of coordinates: [[lat, lng], [lat, lng], ...]
     coords = np.array([[s['latitude'], s['longitude']] for s in sightings])
-
-    # fit_predict returns a cluster label for every input point:
-    #   0, 1, 2, ... = which cluster it belongs to
-    #   -1           = noise (not part of any cluster)
     labels = DBSCAN(eps=eps, min_samples=min_samples, metric='euclidean').fit_predict(coords)
 
     clusters = {}
@@ -193,16 +173,11 @@ def cluster_hotspots():
             clusters[label]['species_counts'].get(species_name, 0) + 1
         )
 
-    # Turn each raw cluster into a summary a frontend map can actually use:
-    # a center point (centroid), how big it is, and what's being seen there.
     result_clusters = []
     for label, cluster in clusters.items():
         pts = np.array([[p['latitude'], p['longitude']] for p in cluster['points']])
         center_lat, center_lng = pts.mean(axis=0)
 
-        # Rough radius: furthest point in the cluster from its centroid,
-        # converted from degrees to meters (~111,000m per degree) so the
-        # frontend can draw an actual circle on the map.
         distances_deg = np.sqrt(((pts - [center_lat, center_lng]) ** 2).sum(axis=1))
         radius_meters = float(distances_deg.max() * 111000) if len(pts) > 1 else 50.0
 
@@ -219,19 +194,104 @@ def cluster_hotspots():
             'topSpecies': [{'name': n, 'count': c} for n, c in top_species[:3]],
         })
 
-    # Biggest/busiest hotspots first — most actionable for a researcher
     result_clusters.sort(key=lambda c: c['pointCount'], reverse=True)
 
     return jsonify({
         'success': True,
         'data': {
             'clusters': result_clusters,
-            'noiseCount': noise_count,  # isolated sightings, not part of any hotspot
+            'noiseCount': noise_count,
         },
     })
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# INCIDENT ANOMALY DETECTION
+#
+# What this does:
+#   Looks at incident activity bucketed by week and flags weeks that look
+#   statistically unusual compared to the rest — a spike in incident count,
+#   or a spike in how severe those incidents were. This is a PROACTIVE
+#   signal ("something unusual is happening right now/recently") rather
+#   than a descriptive one (a raw total, which is all the rest of the
+#   dashboard shows).
+#
+# Why Isolation Forest specifically:
+#   Isolation Forest works by repeatedly picking a random feature and a
+#   random split point, and seeing how many splits it takes to isolate a
+#   given data point on its own. Anomalies — points that are unusual — tend
+#   to get isolated in FEWER splits than normal points, because they don't
+#   need much narrowing down to stand out from everything else. Normal
+#   points, sitting in the "crowd," take many more splits before they're
+#   alone.
+#
+#   This is a good fit here because:
+#     - It's unsupervised — we don't have labeled examples of "this was
+#       definitely an anomalous week" to train on, and realistically never
+#       will for a system like this
+#     - It doesn't assume the data follows any particular distribution
+#       (unlike a simple z-score threshold, which assumes roughly normal/
+#       bell-curve behavior — incident counts are bursty and don't
+#       necessarily look like that)
+#     - It scales naturally to multiple features at once (here: incident
+#       COUNT and incident SEVERITY WEIGHT per week), so a week can be
+#       flagged either for having unusually many incidents, or unusually
+#       severe ones, or both
+#
+# Caveat worth stating out loud when presenting this:
+#   With few data points (a short history), Isolation Forest has very
+#   little to compare against, so flags should be treated as suggestive,
+#   not authoritative, until more weeks of real data accumulate.
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.route('/detect-anomalies', methods=['POST'])
+def detect_anomalies():
+    body = request.get_json(force=True)
+    weekly_data = body.get('weeks', [])
+
+    if len(weekly_data) < 4:
+        # Not enough history for Isolation Forest to have any meaningful
+        # basis for comparison — better to say so than return a fake result.
+        return jsonify({
+            'success': True,
+            'data': {
+                'weeks': [],
+                'message': 'Not enough incident history yet (need at least 4 weeks of data).',
+            },
+        })
+
+    # Two features per week: raw incident count, and a severity-weighted
+    # score (so a week with 3 Critical incidents can be flagged even if a
+    # different week technically has more total incidents but they were
+    # all Low severity).
+    features = np.array([
+        [w['count'], w['severityWeight']] for w in weekly_data
+    ], dtype=float)
+
+    # contamination: our rough prior guess at what fraction of weeks are
+    # "genuinely anomalous" — not a hard rule, just biases how aggressively
+    # the model flags things. 0.15 ≈ "expect roughly 1 in 7 weeks to stand
+    # out," a reasonable starting assumption for incident data, adjustable
+    # later once there's a real sense of what's actually going on with this
+    # site.
+    model = IsolationForest(contamination=0.15, random_state=42)
+    labels = model.fit_predict(features)          # -1 = anomaly, 1 = normal
+    scores = model.decision_function(features)    # more negative = more anomalous
+
+    results = []
+    for week, label, score in zip(weekly_data, labels, scores):
+        results.append({
+            'weekLabel': week['weekLabel'],
+            'count': week['count'],
+            'severityWeight': week['severityWeight'],
+            'isAnomaly': bool(label == -1),
+            'anomalyScore': round(float(score), 3),
+        })
+
+    return jsonify({'success': True, 'data': {'weeks': results}})
+
+
 if __name__ == '__main__':
     is_dev = os.environ.get('FLASK_ENV', 'production') == 'development'
-    print(f'Conservation Risk Score ML service running on port {PORT}')
+    print(f'Conservation ML service running on port {PORT}')
     app.run(host='0.0.0.0', port=PORT, debug=is_dev)

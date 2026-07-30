@@ -14,6 +14,7 @@ import authService from '../../services/auth';
 import api from '../../services/api';
 import { MapContainer, TileLayer, Circle, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import { AlertOctagon } from 'lucide-react';
 
 const ResearcherDashboard = () => {
   const user = authService.getCurrentUser();
@@ -67,6 +68,11 @@ const ResearcherDashboard = () => {
   // kept here too since this panel needs its own map instance.
   const NNP_CENTER = [-1.3700, 36.8500];
   const NNP_ZOOM = 13;
+
+  // ── Anomaly detection state ──────────────────────────────────────────────────
+  const [anomalyWeeks, setAnomalyWeeks] = useState([]);
+  const [anomalyMessage, setAnomalyMessage] = useState(null);
+  const [anomalyError, setAnomalyError] = useState(null);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -177,6 +183,19 @@ const ResearcherDashboard = () => {
     } catch (err) {
       console.error('Hotspot fetch failed:', err);
       setHotspotError(err.response?.data?.message || 'ML scoring service unavailable.');
+    }
+
+    // ── Anomaly detection (separate try/catch, same reasoning as the others) ──
+    try {
+      const anomalyRes = await api.get('/ml/anomalies');
+      if (anomalyRes.data.success) {
+        setAnomalyWeeks(anomalyRes.data.data.weeks || []);
+        setAnomalyMessage(anomalyRes.data.data.message || null);
+        setAnomalyError(null);
+      }
+    } catch (err) {
+      console.error('Anomaly detection fetch failed:', err);
+      setAnomalyError(err.response?.data?.message || 'ML scoring service unavailable.');
     }
   };
 
@@ -569,6 +588,57 @@ const ResearcherDashboard = () => {
                 ))}
               </MapContainer>
             </div>
+          )}
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════════════════
+            INCIDENT ANOMALY DETECTION (ML — Isolation Forest)
+
+            Flags weeks where incident activity (count and/or severity) looks
+            statistically unusual compared to the rest of the recent history.
+            This is unsupervised anomaly detection, not a threshold rule — the
+            model isn't told "more than N incidents = anomaly," it learns what
+            "normal" looks like from the data itself and flags what stands out.
+           ═══════════════════════════════════════════════════════════════════════ */}
+        <div className="border border-bush-line bg-bush-surface p-6 mb-8">
+          <div className="flex items-center mb-4">
+            <AlertOctagon className="h-4 w-4 text-rust mr-2" />
+            <h2 className="font-display text-base font-semibold">Incident Anomaly Detection</h2>
+            <span className="ml-2 font-mono text-[11px] text-bone/40">ML (Isolation Forest) · last 16 weeks</span>
+          </div>
+
+          {anomalyError ? (
+            <p className="text-center font-mono text-xs uppercase tracking-widest text-rust py-8">{anomalyError}</p>
+          ) : anomalyMessage ? (
+            <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-8">{anomalyMessage}</p>
+          ) : anomalyWeeks.length === 0 ? (
+            <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-8">No incident data available</p>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={anomalyWeeks}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#3A4433" />
+                  <XAxis dataKey="weekLabel" stroke="#A8AE9C" tick={{ fontSize: 10, fontFamily: 'IBM Plex Mono' }} />
+                  <YAxis stroke="#A8AE9C" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
+                  <Tooltip
+                    contentStyle={{ background: '#242D1F', border: '1px solid #3A4433', color: '#EDE6D3', fontFamily: 'IBM Plex Mono' }}
+                    formatter={(value, name, props) => [
+                      `${value} incidents${props.payload.isAnomaly ? ' — flagged anomalous' : ''}`,
+                      'Count',
+                    ]}
+                  />
+                  <Bar dataKey="count">
+                    {anomalyWeeks.map((w, i) => (
+                      <Cell key={i} fill={w.isAnomaly ? '#B5432F' : '#4A7C7C'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <p className="mt-3 font-mono text-[11px] text-bone/40">
+                <span className="inline-block w-2 h-2 bg-rust mr-1.5" /> Flagged anomalous
+                <span className="inline-block w-2 h-2 bg-teal ml-4 mr-1.5" /> Normal range
+              </p>
+            </>
           )}
         </div>
 
