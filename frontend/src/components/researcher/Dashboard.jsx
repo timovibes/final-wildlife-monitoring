@@ -6,7 +6,8 @@ import {
 } from 'recharts';
 import {
   TrendingUp, Layers, Eye, AlertTriangle,
-  Radio, Zap, ShieldAlert, Users, Battery, Clock, Gauge
+  Radio, Zap, ShieldAlert, Users, Battery, Clock, Gauge,
+  ChevronDown, ChevronUp
 } from 'lucide-react';
 import Navbar from '../shared/Navbar';
 import authService from '../../services/auth';
@@ -32,6 +33,9 @@ const ResearcherDashboard = () => {
   // ── Risk score state ────────────────────────────────────────────────────────
   const [riskScores, setRiskScores]         = useState([]);
   const [riskScoreError, setRiskScoreError] = useState(null);
+
+  // ── Recent Sightings progressive loading (issue #6) ─────────────────────────
+  const [visibleSightingsCount, setVisibleSightingsCount] = useState(10);
 
   // Field-ops palette for charts (recharts needs literal hex, not Tailwind classes)
   const COLORS     = ['#C98A3E', '#4A7C7C', '#8C6229', '#6B8E8E', '#A8AE9C'];
@@ -68,7 +72,7 @@ const ResearcherDashboard = () => {
         api.get('/reports/dashboard'),
         api.get('/reports/species-distribution'),
         api.get('/reports/incident-trends'),
-        api.get('/sightings?limit=10'),
+        api.get('/sightings'), // limit was never implemented server-side — fetches all, we paginate client-side now
         api.get('/reports/sighting-trends'),
         api.get('/reports/endangered-species'),
         api.get('/reports/iot-activity'),
@@ -553,7 +557,7 @@ const ResearcherDashboard = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-bush-line">
-                {sightings.map((sighting) => (
+                {sightings.slice(0, visibleSightingsCount).map((sighting) => (
                   <tr key={sighting.id} className="hover:bg-bush transition-colors">
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="text-sm font-medium">{sighting.species?.commonName}</div>
@@ -579,8 +583,31 @@ const ResearcherDashboard = () => {
               </tbody>
             </table>
           </div>
+
           {sightings.length === 0 && (
             <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-8">No sightings data available</p>
+          )}
+
+          {sightings.length > 10 && (
+            <div className="flex justify-center mt-4 pt-4 border-t border-bush-line">
+              {visibleSightingsCount < sightings.length ? (
+                <button
+                  onClick={() => setVisibleSightingsCount(prev => Math.min(prev + 10, sightings.length))}
+                  className="flex items-center gap-2 px-4 py-2 border border-bush-line text-bone/60 font-mono text-[11px] uppercase tracking-widest hover:text-bone hover:border-ochre-dim transition-colors"
+                >
+                  <ChevronDown className="h-3.5 w-3.5" />
+                  Show More ({sightings.length - visibleSightingsCount} remaining)
+                </button>
+              ) : (
+                <button
+                  onClick={() => setVisibleSightingsCount(10)}
+                  className="flex items-center gap-2 px-4 py-2 border border-bush-line text-bone/60 font-mono text-[11px] uppercase tracking-widest hover:text-bone hover:border-ochre-dim transition-colors"
+                >
+                  <ChevronUp className="h-3.5 w-3.5" />
+                  Show Less
+                </button>
+              )}
+            </div>
           )}
         </div>
 
