@@ -65,12 +65,13 @@ router.get('/risk-score', authMiddleware, async (req, res) => {
     });
 
     const payload = {
-      species: species.map((sp) => ({
-        speciesId: sp.id,
-        conservationStatus: sp.conservationStatus,
-        monthlySightings: monthKeys.map((m) => sightingsBySpecies[sp.id][m]),
-        incidentPressure: incidentPressureBySpecies[sp.id] || 0,
+      sightings: sightingRows.map((r) => ({
+        latitude: parseFloat(r.latitude),
+        longitude: parseFloat(r.longitude),
+        commonName: r.commonName,
       })),
+      eps: 0.003,       // ~330m instead of ~1.1km — much tighter grouping
+      minSamples: 5,    // needs more nearby sightings to count as a real hotspot
     };
 
     let mlResponse;
