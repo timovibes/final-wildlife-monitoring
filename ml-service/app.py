@@ -15,6 +15,7 @@ from flask_cors import CORS
 from sklearn.linear_model import LinearRegression
 import numpy as np
 from dotenv import load_dotenv
+from sklearn.cluster import DBSCAN
 
 load_dotenv()
 
@@ -115,6 +116,119 @@ def risk_score():
 
     results.sort(key=lambda r: r['riskScore'], reverse=True)
     return jsonify({'success': True, 'data': {'scores': results}})
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SIGHTING HOTSPOT CLUSTERING
+#
+# What this does:
+#   Groups sightings that happened close together in space into "hotspots" —
+#   areas of unusually concentrated wildlife activity — instead of showing
+#   hundreds of individual pins with no visible pattern.
+#
+# Why DBSCAN specifically:
+#   DBSCAN (Density-Based Spatial Clustering) does NOT need to be told in
+#   advance how many hotspots exist — unlike k-means, which requires you to
+#   pick a number of clusters up front. DBSCAN instead asks, for every
+#   sighting: "how many other sightings are within `eps` distance of this
+#   one?" If there are at least `min_samples` nearby, they all join a
+#   cluster together. Sightings with too few neighbors are labelled "noise"
+#   (-1) — one-off sightings that aren't part of any hotspot.
+#
+#   This fits the problem well because:
+#     - We have no idea in advance how many real hotspots exist in the park
+#     - Hotspots can be irregular shapes (a river bank, a valley), not
+#       forced into circles like k-means would
+#     - Isolated one-off sightings are automatically excluded instead of
+#       dragging cluster centers toward outliers
+#
+# Coordinate note (important for presenting this):
+#   `eps` here is in degrees of latitude/longitude, not meters — at
+#   Nairobi's latitude, roughly 1 degree ≈ 111km, so eps=0.01 ≈ ~1.1km.
+#   This is a reasonable approximation for a single park-sized area. A
+#   system covering a much larger area (spanning many degrees of latitude)
+#   would need to convert to true great-circle (haversine) distance first,
+#   since degrees of longitude compress toward the poles.
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.route('/cluster-hotspots', methods=['POST'])
+def cluster_hotspots():
+    body = request.get_json(force=True)
+    sightings = body.get('sightings', [])
+
+    # eps: how close (in degrees) two sightings need to be to count as
+    #      "neighbors". min_samples: how many neighbors are needed before
+    #      a point is considered part of a dense region (a hotspot) rather
+    #      than noise. Both are tunable — smaller eps / higher min_samples
+    #      = stricter, fewer but more confident hotspots.
+    eps = float(body.get('eps', 0.01))
+    min_samples = int(body.get('minSamples', 3))
+
+    if not sightings:
+        return jsonify({'success': True, 'data': {'clusters': [], 'noiseCount': 0}})
+
+    # DBSCAN expects a 2D array of coordinates: [[lat, lng], [lat, lng], ...]
+    coords = np.array([[s['latitude'], s['longitude']] for s in sightings])
+
+    # fit_predict returns a cluster label for every input point:
+    #   0, 1, 2, ... = which cluster it belongs to
+    #   -1           = noise (not part of any cluster)
+    labels = DBSCAN(eps=eps, min_samples=min_samples, metric='euclidean').fit_predict(coords)
+
+    clusters = {}
+    noise_count = 0
+
+    for sighting, label in zip(sightings, labels):
+        if label == -1:
+            noise_count += 1
+            continue
+
+        if label not in clusters:
+            clusters[label] = {'points': [], 'species_counts': {}}
+
+        clusters[label]['points'].append(sighting)
+
+        species_name = sighting.get('commonName', 'Unknown')
+        clusters[label]['species_counts'][species_name] = (
+            clusters[label]['species_counts'].get(species_name, 0) + 1
+        )
+
+    # Turn each raw cluster into a summary a frontend map can actually use:
+    # a center point (centroid), how big it is, and what's being seen there.
+    result_clusters = []
+    for label, cluster in clusters.items():
+        pts = np.array([[p['latitude'], p['longitude']] for p in cluster['points']])
+        center_lat, center_lng = pts.mean(axis=0)
+
+        # Rough radius: furthest point in the cluster from its centroid,
+        # converted from degrees to meters (~111,000m per degree) so the
+        # frontend can draw an actual circle on the map.
+        distances_deg = np.sqrt(((pts - [center_lat, center_lng]) ** 2).sum(axis=1))
+        radius_meters = float(distances_deg.max() * 111000) if len(pts) > 1 else 50.0
+
+        top_species = sorted(
+            cluster['species_counts'].items(), key=lambda x: x[1], reverse=True
+        )
+
+        result_clusters.append({
+            'clusterId': int(label),
+            'centerLat': float(center_lat),
+            'centerLng': float(center_lng),
+            'pointCount': len(cluster['points']),
+            'radiusMeters': round(radius_meters, 1),
+            'topSpecies': [{'name': n, 'count': c} for n, c in top_species[:3]],
+        })
+
+    # Biggest/busiest hotspots first — most actionable for a researcher
+    result_clusters.sort(key=lambda c: c['pointCount'], reverse=True)
+
+    return jsonify({
+        'success': True,
+        'data': {
+            'clusters': result_clusters,
+            'noiseCount': noise_count,  # isolated sightings, not part of any hotspot
+        },
+    })
 
 
 if __name__ == '__main__':

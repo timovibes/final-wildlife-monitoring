@@ -99,4 +99,64 @@ router.get('/risk-score', authMiddleware, async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════
+// GET /api/ml/hotspots
+//
+// Pulls every sighting's coordinates + species name from Postgres and sends
+// them to the Flask ML service to be grouped into hotspots via DBSCAN
+// clustering. Same division of labor as /risk-score: this route owns the
+// data (Postgres), Flask owns the math (the actual clustering algorithm).
+// ═══════════════════════════════════════════════════════════════════════════
+router.get('/hotspots', authMiddleware, async (req, res) => {
+  try {
+    // Raw join so we get the species' common name alongside each sighting's
+    // coordinates in a single query, instead of fetching sightings and
+    // species separately and joining them in JS.
+    const sightingRows = await sequelize.query(
+      `
+      SELECT si.latitude, si.longitude, sp."commonName"
+      FROM sightings si
+      JOIN species sp ON sp.id = si."speciesId"
+      WHERE si.latitude IS NOT NULL AND si.longitude IS NOT NULL
+      `,
+      { type: sequelize.QueryTypes.SELECT }
+    );
+
+    if (sightingRows.length === 0) {
+      return res.status(200).json({ success: true, data: { clusters: [], noiseCount: 0 } });
+    }
+
+    const payload = {
+      sightings: sightingRows.map((r) => ({
+        latitude: parseFloat(r.latitude),
+        longitude: parseFloat(r.longitude),
+        commonName: r.commonName,
+      })),
+      // eps/minSamples left at the Flask service's defaults for now.
+      // Could be exposed as query params later to let a researcher tune
+      // "how tight a hotspot needs to be" directly from the UI.
+    };
+
+    let mlResponse;
+    try {
+      mlResponse = await axios.post(`${ML_SERVICE_URL}/cluster-hotspots`, payload, { timeout: 15000 });
+    } catch (mlError) {
+      console.error('Hotspot clustering call failed:', mlError.message);
+      return res.status(503).json({
+        success: false,
+        message: 'The ML scoring service is not reachable. Make sure it is running (cd ml-service && python app.py).',
+      });
+    }
+
+    res.status(200).json({ success: true, data: mlResponse.data.data });
+  } catch (error) {
+    console.error('Hotspot clustering error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to compute sighting hotspots.',
+      error: error.message,
+    });
+  }
+});
+
 module.exports = router;
