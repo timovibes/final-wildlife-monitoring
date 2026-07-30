@@ -64,6 +64,9 @@ router.get('/risk-score', authMiddleware, async (req, res) => {
         (incidentPressureBySpecies[row.speciesId] || 0) + weight * parseInt(row.count, 10);
     });
 
+    // NOTE: this payload feeds Flask's /risk-score endpoint, which does
+    // regression scoring — it has no use for eps/minSamples (those are
+    // clustering params, only relevant to /cluster-hotspots below).
     const payload = {
       species: species.map((sp) => ({
         speciesId: sp.id,
@@ -96,6 +99,71 @@ router.get('/risk-score', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Risk score error:', error);
     res.status(500).json({ success: false, message: 'Failed to compute risk scores.', error: error.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GET /api/ml/hotspots
+//
+// Pulls every sighting's coordinates + species name from Postgres and sends
+// them to the Flask ML service to be grouped into hotspots via DBSCAN
+// clustering. Same division of labor as /risk-score: this route owns the
+// data (Postgres), Flask owns the math (the actual clustering algorithm).
+//
+// eps/minSamples are tuned here (not left at Flask's defaults) because the
+// default eps (~1.1km) was too loose for this park's sighting density and
+// caused DBSCAN's "chaining" effect — nearly every sighting ended up in one
+// giant cluster instead of several meaningful hotspots. Tighter values force
+// stricter, smaller, more useful groupings.
+// ═══════════════════════════════════════════════════════════════════════════
+router.get('/hotspots', authMiddleware, async (req, res) => {
+  try {
+    // Raw join so we get the species' common name alongside each sighting's
+    // coordinates in a single query, instead of fetching sightings and
+    // species separately and joining them in JS.
+    const sightingRows = await sequelize.query(
+      `
+      SELECT si.latitude, si.longitude, sp."commonName"
+      FROM sightings si
+      JOIN species sp ON sp.id = si."speciesId"
+      WHERE si.latitude IS NOT NULL AND si.longitude IS NOT NULL
+      `,
+      { type: sequelize.QueryTypes.SELECT }
+    );
+
+    if (sightingRows.length === 0) {
+      return res.status(200).json({ success: true, data: { clusters: [], noiseCount: 0 } });
+    }
+
+    const payload = {
+      sightings: sightingRows.map((r) => ({
+        latitude: parseFloat(r.latitude),
+        longitude: parseFloat(r.longitude),
+        commonName: r.commonName,
+      })),
+      eps: 0.003,       // ~330m instead of ~1.1km — much tighter grouping
+      minSamples: 5,    // needs more nearby sightings to count as a real hotspot
+    };
+
+    let mlResponse;
+    try {
+      mlResponse = await axios.post(`${ML_SERVICE_URL}/cluster-hotspots`, payload, { timeout: 15000 });
+    } catch (mlError) {
+      console.error('Hotspot clustering call failed:', mlError.message);
+      return res.status(503).json({
+        success: false,
+        message: 'The ML scoring service is not reachable. Make sure it is running (cd ml-service && python app.py).',
+      });
+    }
+
+    res.status(200).json({ success: true, data: mlResponse.data.data });
+  } catch (error) {
+    console.error('Hotspot clustering error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to compute sighting hotspots.',
+      error: error.message,
+    });
   }
 });
 

@@ -12,6 +12,8 @@ import {
 import Navbar from '../shared/Navbar';
 import authService from '../../services/auth';
 import api from '../../services/api';
+import { MapContainer, TileLayer, Circle, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 
 const ResearcherDashboard = () => {
   const user = authService.getCurrentUser();
@@ -55,6 +57,16 @@ const ResearcherDashboard = () => {
     NT: '#6B8E8E',
     LC: '#4A7C7C', // teal
   };
+
+  // ── Sighting hotspot state ───────────────────────────────────────────────────
+  const [hotspots, setHotspots] = useState([]);
+  const [hotspotNoiseCount, setHotspotNoiseCount] = useState(0);
+  const [hotspotError, setHotspotError] = useState(null);
+
+  // Nairobi National Park center — same coordinates used in the admin IoT map,
+  // kept here too since this panel needs its own map instance.
+  const NNP_CENTER = [-1.3700, 36.8500];
+  const NNP_ZOOM = 13;
 
   useEffect(() => { fetchData(); }, []);
 
@@ -152,6 +164,19 @@ const ResearcherDashboard = () => {
     } catch (err) {
       console.error('Risk score fetch failed:', err);
       setRiskScoreError(err.response?.data?.message || 'ML scoring service unavailable.');
+    }
+
+    // ── Sighting hotspots (separate try/catch, same reasoning as risk score) ──
+    try {
+      const hotspotRes = await api.get('/ml/hotspots');
+      if (hotspotRes.data.success) {
+        setHotspots(hotspotRes.data.data.clusters);
+        setHotspotNoiseCount(hotspotRes.data.data.noiseCount);
+        setHotspotError(null);
+      }
+    } catch (err) {
+      console.error('Hotspot fetch failed:', err);
+      setHotspotError(err.response?.data?.message || 'ML scoring service unavailable.');
     }
   };
 
@@ -482,6 +507,67 @@ const ResearcherDashboard = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════════════════
+            SIGHTING HOTSPOTS (ML — DBSCAN clustering)
+
+            Groups sightings that happened close together in space into "hotspot"
+            zones, rather than showing every individual sighting as an unreadable
+            scatter of pins. Circle size = how many sightings are in that hotspot.
+            This is unsupervised clustering (DBSCAN), not a prediction — it's
+            describing where activity is actually concentrated right now, which
+            is useful for planning where to focus patrols or research effort.
+          ═══════════════════════════════════════════════════════════════════════ */}
+        <div className="border border-bush-line bg-bush-surface p-6 mb-8">
+          <div className="flex items-center mb-4">
+            <Radio className="h-4 w-4 text-teal mr-2" />
+            <h2 className="font-display text-base font-semibold">Sighting Hotspots</h2>
+            <span className="ml-2 font-mono text-[11px] text-bone/40">
+              ML-clustered (DBSCAN){hotspotNoiseCount > 0 ? ` · ${hotspotNoiseCount} isolated sightings excluded` : ''}
+            </span>
+          </div>
+
+          {hotspotError ? (
+            <p className="text-center font-mono text-xs uppercase tracking-widest text-rust py-8">{hotspotError}</p>
+          ) : hotspots.length === 0 ? (
+            <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-8">
+              No hotspots detected yet — need more clustered sighting data
+            </p>
+          ) : (
+            <div className="h-[420px] w-full overflow-hidden border border-bush-line">
+              <MapContainer center={NNP_CENTER} zoom={NNP_ZOOM} style={{ height: '100%', width: '100%' }}>
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution="&copy; OpenStreetMap contributors"
+                />
+                {hotspots.map((cluster) => (
+                  <Circle
+                    key={cluster.clusterId}
+                    center={[cluster.centerLat, cluster.centerLng]}
+                    radius={cluster.radiusMeters}
+                    pathOptions={{
+                      // Bigger hotspots get a more intense ochre; small ones stay teal
+                      color: cluster.pointCount >= 10 ? '#B5432F' : cluster.pointCount >= 5 ? '#C98A3E' : '#4A7C7C',
+                      fillColor: cluster.pointCount >= 10 ? '#B5432F' : cluster.pointCount >= 5 ? '#C98A3E' : '#4A7C7C',
+                      fillOpacity: 0.25,
+                      weight: 1.5,
+                    }}
+                  >
+                    <Popup>
+                      <div className="font-mono text-xs space-y-1 min-w-[160px]">
+                        <p className="font-bold text-bush">{cluster.pointCount} sightings</p>
+                        <hr />
+                        {cluster.topSpecies.map((sp) => (
+                          <p key={sp.name}>{sp.name}: {sp.count}</p>
+                        ))}
+                      </div>
+                    </Popup>
+                  </Circle>
+                ))}
+              </MapContainer>
             </div>
           )}
         </div>
