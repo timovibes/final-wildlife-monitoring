@@ -64,14 +64,16 @@ router.get('/risk-score', authMiddleware, async (req, res) => {
         (incidentPressureBySpecies[row.speciesId] || 0) + weight * parseInt(row.count, 10);
     });
 
+    // NOTE: this payload feeds Flask's /risk-score endpoint, which does
+    // regression scoring — it has no use for eps/minSamples (those are
+    // clustering params, only relevant to /cluster-hotspots below).
     const payload = {
-      sightings: sightingRows.map((r) => ({
-        latitude: parseFloat(r.latitude),
-        longitude: parseFloat(r.longitude),
-        commonName: r.commonName,
+      species: species.map((sp) => ({
+        speciesId: sp.id,
+        conservationStatus: sp.conservationStatus,
+        monthlySightings: monthKeys.map((m) => sightingsBySpecies[sp.id][m]),
+        incidentPressure: incidentPressureBySpecies[sp.id] || 0,
       })),
-      eps: 0.003,       // ~330m instead of ~1.1km — much tighter grouping
-      minSamples: 5,    // needs more nearby sightings to count as a real hotspot
     };
 
     let mlResponse;
@@ -107,6 +109,12 @@ router.get('/risk-score', authMiddleware, async (req, res) => {
 // them to the Flask ML service to be grouped into hotspots via DBSCAN
 // clustering. Same division of labor as /risk-score: this route owns the
 // data (Postgres), Flask owns the math (the actual clustering algorithm).
+//
+// eps/minSamples are tuned here (not left at Flask's defaults) because the
+// default eps (~1.1km) was too loose for this park's sighting density and
+// caused DBSCAN's "chaining" effect — nearly every sighting ended up in one
+// giant cluster instead of several meaningful hotspots. Tighter values force
+// stricter, smaller, more useful groupings.
 // ═══════════════════════════════════════════════════════════════════════════
 router.get('/hotspots', authMiddleware, async (req, res) => {
   try {
@@ -133,9 +141,8 @@ router.get('/hotspots', authMiddleware, async (req, res) => {
         longitude: parseFloat(r.longitude),
         commonName: r.commonName,
       })),
-      // eps/minSamples left at the Flask service's defaults for now.
-      // Could be exposed as query params later to let a researcher tune
-      // "how tight a hotspot needs to be" directly from the UI.
+      eps: 0.003,       // ~330m instead of ~1.1km — much tighter grouping
+      minSamples: 5,    // needs more nearby sightings to count as a real hotspot
     };
 
     let mlResponse;
