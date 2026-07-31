@@ -35,12 +35,6 @@ WEIGHTS = {'status': 0.5, 'trend': 0.3, 'incident': 0.2}
 
 
 def compute_trend_score(monthly_counts):
-    """
-    Fits month-index -> sighting-count with linear regression and returns a
-    0-1 decline severity score. Flat/rising trend = 0. Needs at least 2
-    non-zero months to fit meaningfully; otherwise returns 0 (no signal,
-    not "no risk" — a data-availability limitation, not a safety claim).
-    """
     counts = np.array(monthly_counts, dtype=float)
     if np.count_nonzero(counts) < 2:
         return 0.0, None
@@ -119,28 +113,6 @@ def risk_score():
     return jsonify({'success': True, 'data': {'scores': results}})
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# SIGHTING HOTSPOT CLUSTERING
-#
-# What this does:
-#   Groups sightings that happened close together in space into "hotspots" —
-#   areas of unusually concentrated wildlife activity — instead of showing
-#   hundreds of individual pins with no visible pattern.
-#
-# Why DBSCAN specifically:
-#   DBSCAN (Density-Based Spatial Clustering) does NOT need to be told in
-#   advance how many hotspots exist — unlike k-means, which requires you to
-#   pick a number of clusters up front. DBSCAN instead asks, for every
-#   sighting: "how many other sightings are within `eps` distance of this
-#   one?" If there are at least `min_samples` nearby, they all join a
-#   cluster together. Sightings with too few neighbors are labelled "noise"
-#   (-1) — one-off sightings that aren't part of any hotspot.
-#
-# Coordinate note (important for presenting this):
-#   `eps` here is in degrees of latitude/longitude, not meters — at
-#   Nairobi's latitude, roughly 1 degree ≈ 111km, so eps=0.003 ≈ ~330m.
-# ═══════════════════════════════════════════════════════════════════════════
-
 @app.route('/cluster-hotspots', methods=['POST'])
 def cluster_hotspots():
     body = request.get_json(force=True)
@@ -208,40 +180,12 @@ def cluster_hotspots():
 # ═══════════════════════════════════════════════════════════════════════════
 # INCIDENT ANOMALY DETECTION
 #
-# What this does:
-#   Looks at incident activity bucketed by week and flags weeks that look
-#   statistically unusual compared to the rest — a spike in incident count,
-#   or a spike in how severe those incidents were. This is a PROACTIVE
-#   signal ("something unusual is happening right now/recently") rather
-#   than a descriptive one (a raw total, which is all the rest of the
-#   dashboard shows).
-#
-# Why Isolation Forest specifically:
-#   Isolation Forest works by repeatedly picking a random feature and a
-#   random split point, and seeing how many splits it takes to isolate a
-#   given data point on its own. Anomalies — points that are unusual — tend
-#   to get isolated in FEWER splits than normal points, because they don't
-#   need much narrowing down to stand out from everything else. Normal
-#   points, sitting in the "crowd," take many more splits before they're
-#   alone.
-#
-#   This is a good fit here because:
-#     - It's unsupervised — we don't have labeled examples of "this was
-#       definitely an anomalous week" to train on, and realistically never
-#       will for a system like this
-#     - It doesn't assume the data follows any particular distribution
-#       (unlike a simple z-score threshold, which assumes roughly normal/
-#       bell-curve behavior — incident counts are bursty and don't
-#       necessarily look like that)
-#     - It scales naturally to multiple features at once (here: incident
-#       COUNT and incident SEVERITY WEIGHT per week), so a week can be
-#       flagged either for having unusually many incidents, or unusually
-#       severe ones, or both
-#
-# Caveat worth stating out loud when presenting this:
-#   With few data points (a short history), Isolation Forest has very
-#   little to compare against, so flags should be treated as suggestive,
-#   not authoritative, until more weeks of real data accumulate.
+# What changed from the first version: this now returns WHY a week was
+# flagged, not just a yes/no. For each week we compute how far its count
+# and severity-weighted score sit from the average of all weeks in the
+# window (as a percentage), so the frontend can build a real explanation
+# like "11 incidents, 72% above the 16-week average of 6.4" instead of just
+# coloring a bar red with no justification.
 # ═══════════════════════════════════════════════════════════════════════════
 
 @app.route('/detect-anomalies', methods=['POST'])
@@ -250,8 +194,6 @@ def detect_anomalies():
     weekly_data = body.get('weeks', [])
 
     if len(weekly_data) < 4:
-        # Not enough history for Isolation Forest to have any meaningful
-        # basis for comparison — better to say so than return a fake result.
         return jsonify({
             'success': True,
             'data': {
@@ -260,35 +202,51 @@ def detect_anomalies():
             },
         })
 
-    # Two features per week: raw incident count, and a severity-weighted
-    # score (so a week with 3 Critical incidents can be flagged even if a
-    # different week technically has more total incidents but they were
-    # all Low severity).
     features = np.array([
         [w['count'], w['severityWeight']] for w in weekly_data
     ], dtype=float)
 
-    # contamination: our rough prior guess at what fraction of weeks are
-    # "genuinely anomalous" — not a hard rule, just biases how aggressively
-    # the model flags things. 0.15 ≈ "expect roughly 1 in 7 weeks to stand
-    # out," a reasonable starting assumption for incident data, adjustable
-    # later once there's a real sense of what's actually going on with this
-    # site.
+    mean_count = float(features[:, 0].mean())
+    mean_severity = float(features[:, 1].mean())
+
     model = IsolationForest(contamination=0.15, random_state=42)
-    labels = model.fit_predict(features)          # -1 = anomaly, 1 = normal
-    scores = model.decision_function(features)    # more negative = more anomalous
+    labels = model.fit_predict(features)
+    scores = model.decision_function(features)
 
     results = []
     for week, label, score in zip(weekly_data, labels, scores):
+        count_vs_avg_pct = (
+            round(((week['count'] - mean_count) / mean_count) * 100, 1) if mean_count > 0 else 0.0
+        )
+        severity_vs_avg_pct = (
+            round(((week['severityWeight'] - mean_severity) / mean_severity) * 100, 1)
+            if mean_severity > 0 else 0.0
+        )
+
         results.append({
+            # Echo back whatever identifying fields Node sent (weekStart/
+            # weekEnd), so the frontend can use them to query the actual
+            # incidents for a flagged week without this service needing
+            # any database access of its own.
             'weekLabel': week['weekLabel'],
+            'weekStart': week.get('weekStart'),
+            'weekEnd': week.get('weekEnd'),
             'count': week['count'],
             'severityWeight': week['severityWeight'],
             'isAnomaly': bool(label == -1),
             'anomalyScore': round(float(score), 3),
+            'countVsAveragePct': count_vs_avg_pct,
+            'severityVsAveragePct': severity_vs_avg_pct,
         })
 
-    return jsonify({'success': True, 'data': {'weeks': results}})
+    return jsonify({
+        'success': True,
+        'data': {
+            'weeks': results,
+            'meanCount': round(mean_count, 1),
+            'meanSeverityWeight': round(mean_severity, 1),
+        },
+    })
 
 
 if __name__ == '__main__':

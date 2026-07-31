@@ -7,14 +7,13 @@ import {
 import {
   TrendingUp, Layers, Eye, AlertTriangle,
   Radio, Zap, ShieldAlert, Users, Battery, Clock, Gauge,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, AlertOctagon, ChevronRight, ChevronDown as ChevronDownIcon
 } from 'lucide-react';
 import Navbar from '../shared/Navbar';
 import authService from '../../services/auth';
 import api from '../../services/api';
 import { MapContainer, TileLayer, Circle, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { AlertOctagon } from 'lucide-react';
 
 const ResearcherDashboard = () => {
   const user = authService.getCurrentUser();
@@ -71,8 +70,14 @@ const ResearcherDashboard = () => {
 
   // ── Anomaly detection state ──────────────────────────────────────────────────
   const [anomalyWeeks, setAnomalyWeeks] = useState([]);
+  const [anomalyMeta, setAnomalyMeta] = useState({ meanCount: 0, meanSeverityWeight: 0 });
   const [anomalyMessage, setAnomalyMessage] = useState(null);
   const [anomalyError, setAnomalyError] = useState(null);
+
+  // Drill-down: which flagged week is currently expanded, and its incidents
+  const [expandedWeek, setExpandedWeek] = useState(null);
+  const [weekIncidents, setWeekIncidents] = useState([]);
+  const [weekIncidentsLoading, setWeekIncidentsLoading] = useState(false);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -190,6 +195,10 @@ const ResearcherDashboard = () => {
       const anomalyRes = await api.get('/ml/anomalies');
       if (anomalyRes.data.success) {
         setAnomalyWeeks(anomalyRes.data.data.weeks || []);
+        setAnomalyMeta({
+          meanCount: anomalyRes.data.data.meanCount || 0,
+          meanSeverityWeight: anomalyRes.data.data.meanSeverityWeight || 0,
+        });
         setAnomalyMessage(anomalyRes.data.data.message || null);
         setAnomalyError(null);
       }
@@ -197,6 +206,38 @@ const ResearcherDashboard = () => {
       console.error('Anomaly detection fetch failed:', err);
       setAnomalyError(err.response?.data?.message || 'ML scoring service unavailable.');
     }
+  };
+
+  // ── Drill-down: fetch the real incidents behind a flagged week ─────────────
+  // Toggles closed if you click the same week again.
+  const handleWeekDrillDown = async (week) => {
+    if (expandedWeek?.weekStart === week.weekStart) {
+      setExpandedWeek(null);
+      return;
+    }
+
+    setExpandedWeek(week);
+    setWeekIncidentsLoading(true);
+    try {
+      const res = await api.get(`/incidents?startDate=${week.weekStart}&endDate=${week.weekEnd}`);
+      if (res.data.success) {
+        setWeekIncidents(res.data.data.incidents);
+      }
+    } catch (err) {
+      console.error('Failed to fetch week incidents:', err);
+      setWeekIncidents([]);
+    } finally {
+      setWeekIncidentsLoading(false);
+    }
+  };
+
+  // Builds a plain-English reasoning line from the numbers Flask already
+  // computed — no extra ML here, just surfacing what the model found instead
+  // of throwing it away after coloring a bar.
+  const buildAnomalyReasoning = (week) => {
+    const countPart = `${week.count} incidents (${week.countVsAveragePct >= 0 ? '+' : ''}${week.countVsAveragePct}% vs the ${anomalyMeta.meanCount}-week average)`;
+    const severityPart = week.severityVsAveragePct >= 30 ? ', with notably elevated severity' : '';
+    return `${countPart}${severityPart}.`;
   };
 
   // ── Battery colour helper ───────────────────────────────────────────────────
@@ -594,11 +635,10 @@ const ResearcherDashboard = () => {
         {/* ═══════════════════════════════════════════════════════════════════════
             INCIDENT ANOMALY DETECTION (ML — Isolation Forest)
 
-            Flags weeks where incident activity (count and/or severity) looks
-            statistically unusual compared to the rest of the recent history.
-            This is unsupervised anomaly detection, not a threshold rule — the
-            model isn't told "more than N incidents = anomaly," it learns what
-            "normal" looks like from the data itself and flags what stands out.
+            Flags weeks where incident activity looks statistically unusual, then
+            explains WHY (count/severity deviation from the average) and lets you
+            drill into the actual incidents behind a flagged week — not just a
+            colored bar with no justification.
            ═══════════════════════════════════════════════════════════════════════ */}
         <div className="border border-bush-line bg-bush-surface p-6 mb-8">
           <div className="flex items-center mb-4">
@@ -627,7 +667,7 @@ const ResearcherDashboard = () => {
                       'Count',
                     ]}
                   />
-                  <Bar dataKey="count">
+                  <Bar dataKey="count" cursor="pointer" onClick={(data) => handleWeekDrillDown(data)}>
                     {anomalyWeeks.map((w, i) => (
                       <Cell key={i} fill={w.isAnomaly ? '#B5432F' : '#4A7C7C'} />
                     ))}
@@ -637,7 +677,68 @@ const ResearcherDashboard = () => {
               <p className="mt-3 font-mono text-[11px] text-bone/40">
                 <span className="inline-block w-2 h-2 bg-rust mr-1.5" /> Flagged anomalous
                 <span className="inline-block w-2 h-2 bg-teal ml-4 mr-1.5" /> Normal range
+                <span className="ml-4">Click any bar to view that week's incidents</span>
               </p>
+
+              {/* Flagged weeks list — reasoning shown for each, drill-down inline */}
+              {anomalyWeeks.some(w => w.isAnomaly) && (
+                <div className="mt-4 border-t border-bush-line pt-4 space-y-2">
+                  <p className="font-mono text-[10px] uppercase tracking-widest text-rust mb-2">Flagged Weeks</p>
+                  {anomalyWeeks.filter(w => w.isAnomaly).map((week) => (
+                    <div key={week.weekStart} className="border border-rust/40">
+                      <button
+                        onClick={() => handleWeekDrillDown(week)}
+                        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-bush transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          {expandedWeek?.weekStart === week.weekStart ? (
+                            <ChevronDownIcon className="h-3.5 w-3.5 text-rust flex-shrink-0" />
+                          ) : (
+                            <ChevronRight className="h-3.5 w-3.5 text-rust flex-shrink-0" />
+                          )}
+                          <div>
+                            <p className="font-display text-sm font-semibold">{week.weekLabel}</p>
+                            <p className="text-xs text-bone/60 mt-0.5">{buildAnomalyReasoning(week)}</p>
+                          </div>
+                        </div>
+                      </button>
+
+                      {expandedWeek?.weekStart === week.weekStart && (
+                        <div className="border-t border-bush-line p-4">
+                          {weekIncidentsLoading ? (
+                            <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-4">Loading incidents...</p>
+                          ) : weekIncidents.length === 0 ? (
+                            <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-4">No incidents found for this week</p>
+                          ) : (
+                            <div className="space-y-3">
+                              {weekIncidents.map((incident) => (
+                                <div key={incident.id} className="field-tag">
+                                  <div className="flex-1 flex justify-between items-start gap-4">
+                                    <div>
+                                      <h4 className="font-display font-semibold text-sm">{incident.incidentType}</h4>
+                                      <p className="text-sm text-bone/60 mt-1">{incident.description}</p>
+                                      <p className="font-mono text-[11px] text-bone/40 mt-2">
+                                        {incident.location || 'Location not recorded'} &middot; Reported by {incident.reporter?.firstName} {incident.reporter?.lastName}
+                                      </p>
+                                    </div>
+                                    <span className={`font-mono text-[10px] uppercase tracking-widest px-2 py-1 border flex-shrink-0 ${
+                                      incident.severity === 'Critical' ? 'border-rust text-rust' :
+                                      incident.severity === 'High' ? 'border-ochre text-ochre' :
+                                      'border-bush-line text-bone/50'
+                                    }`}>
+                                      {incident.severity}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
         </div>

@@ -99,9 +99,6 @@ router.get('/risk-score', authMiddleware, async (req, res) => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-// GET /api/ml/hotspots — see ml-service/app.py for the clustering explanation
-// ═══════════════════════════════════════════════════════════════════════════
 router.get('/hotspots', authMiddleware, async (req, res) => {
   try {
     const sightingRows = await sequelize.query(
@@ -153,15 +150,12 @@ router.get('/hotspots', authMiddleware, async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════
 // GET /api/ml/anomalies
 //
-// Buckets incidents into weeks (last ~16 weeks), computes a severity-
-// weighted score per week, and sends both to Flask's Isolation Forest
-// route to flag weeks that look statistically unusual. See app.py for the
-// full explanation of why Isolation Forest was chosen.
+// Now sends weekStart/weekEnd (actual ISO dates, not just display labels)
+// so the frontend can query GET /api/incidents?startDate=...&endDate=...
+// for a flagged week's real incidents — this is what powers the drill-down.
 // ═══════════════════════════════════════════════════════════════════════════
 router.get('/anomalies', authMiddleware, async (req, res) => {
   try {
-    // Bucket by week, count incidents, and sum a severity weight per week
-    // in a single query — Postgres computes the weight inline via CASE.
     const weekRows = await sequelize.query(
       `
       SELECT
@@ -189,11 +183,20 @@ router.get('/anomalies', authMiddleware, async (req, res) => {
     }
 
     const payload = {
-      weeks: weekRows.map((w) => ({
-        weekLabel: new Date(w.week).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        count: parseInt(w.count, 10),
-        severityWeight: parseInt(w.severityWeight, 10),
-      })),
+      weeks: weekRows.map((w) => {
+        const weekStart = new Date(w.week);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        weekEnd.setHours(23, 59, 59, 999); // include the whole last day
+
+        return {
+          weekLabel: weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          weekStart: weekStart.toISOString(),
+          weekEnd: weekEnd.toISOString(),
+          count: parseInt(w.count, 10),
+          severityWeight: parseInt(w.severityWeight, 10),
+        };
+      }),
     };
 
     let mlResponse;
