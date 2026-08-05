@@ -7,13 +7,13 @@ import {
 import {
   TrendingUp, Layers, Eye, AlertTriangle,
   Radio, Zap, ShieldAlert, Users, Battery, Clock, Gauge,
-  ChevronDown, ChevronUp, AlertOctagon, ChevronRight, ChevronDown as ChevronDownIcon
+  ChevronDown, ChevronUp, ChevronRight, AlertOctagon, GitBranch
 } from 'lucide-react';
+import { MapContainer, TileLayer, Circle, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import Navbar from '../shared/Navbar';
 import authService from '../../services/auth';
 import api from '../../services/api';
-import { MapContainer, TileLayer, Circle, Popup } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
 
 const ResearcherDashboard = () => {
   const user = authService.getCurrentUser();
@@ -25,7 +25,6 @@ const ResearcherDashboard = () => {
   const [sightings, setSightings]               = useState([]);
   const [loading, setLoading]                   = useState(true);
 
-  // ── New state ───────────────────────────────────────────────────────────────
   const [monthlyTrends, setMonthlyTrends]         = useState([]);   // sightings over time
   const [topSpecies, setTopSpecies]               = useState([]);   // top 5 most sighted
   const [conservationStatus, setConservationStatus] = useState([]); // status breakdown
@@ -38,6 +37,35 @@ const ResearcherDashboard = () => {
 
   // ── Recent Sightings progressive loading (issue #6) ─────────────────────────
   const [visibleSightingsCount, setVisibleSightingsCount] = useState(10);
+
+  // ── Sighting hotspot state ───────────────────────────────────────────────────
+  const [hotspots, setHotspots] = useState([]);
+  const [hotspotNoiseCount, setHotspotNoiseCount] = useState(0);
+  const [hotspotError, setHotspotError] = useState(null);
+
+  // Nairobi National Park center — same coordinates used in the admin IoT map
+  const NNP_CENTER = [-1.3700, 36.8500];
+  const NNP_ZOOM = 13;
+
+  // ── Anomaly detection state ──────────────────────────────────────────────────
+  const [anomalyWeeks, setAnomalyWeeks] = useState([]);
+  const [anomalyMeta, setAnomalyMeta] = useState({ meanCount: 0, meanSeverityWeight: 0 });
+  const [anomalyMessage, setAnomalyMessage] = useState(null);
+  const [anomalyError, setAnomalyError] = useState(null);
+
+  // Drill-down: which flagged week is currently expanded, and its incidents
+  const [expandedWeek, setExpandedWeek] = useState(null);
+  const [weekIncidents, setWeekIncidents] = useState([]);
+  const [weekIncidentsLoading, setWeekIncidentsLoading] = useState(false);
+
+  // ── Forecast state ────────────────────────────────────────────────────────
+  const [forecastProjected, setForecastProjected] = useState([]);
+  const [forecastMessage, setForecastMessage] = useState(null);
+  const [forecastError, setForecastError] = useState(null);
+
+  // ── Co-occurrence state ─────────────────────────────────────────────────────
+  const [coOccurrencePairs, setCoOccurrencePairs] = useState([]);
+  const [coOccurrenceError, setCoOccurrenceError] = useState(null);
 
   // Field-ops palette for charts (recharts needs literal hex, not Tailwind classes)
   const COLORS     = ['#C98A3E', '#4A7C7C', '#8C6229', '#6B8E8E', '#A8AE9C'];
@@ -57,27 +85,6 @@ const ResearcherDashboard = () => {
     NT: '#6B8E8E',
     LC: '#4A7C7C', // teal
   };
-
-  // ── Sighting hotspot state ───────────────────────────────────────────────────
-  const [hotspots, setHotspots] = useState([]);
-  const [hotspotNoiseCount, setHotspotNoiseCount] = useState(0);
-  const [hotspotError, setHotspotError] = useState(null);
-
-  // Nairobi National Park center — same coordinates used in the admin IoT map,
-  // kept here too since this panel needs its own map instance.
-  const NNP_CENTER = [-1.3700, 36.8500];
-  const NNP_ZOOM = 13;
-
-  // ── Anomaly detection state ──────────────────────────────────────────────────
-  const [anomalyWeeks, setAnomalyWeeks] = useState([]);
-  const [anomalyMeta, setAnomalyMeta] = useState({ meanCount: 0, meanSeverityWeight: 0 });
-  const [anomalyMessage, setAnomalyMessage] = useState(null);
-  const [anomalyError, setAnomalyError] = useState(null);
-
-  // Drill-down: which flagged week is currently expanded, and its incidents
-  const [expandedWeek, setExpandedWeek] = useState(null);
-  const [weekIncidents, setWeekIncidents] = useState([]);
-  const [weekIncidentsLoading, setWeekIncidentsLoading] = useState(false);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -177,7 +184,7 @@ const ResearcherDashboard = () => {
       setRiskScoreError(err.response?.data?.message || 'ML scoring service unavailable.');
     }
 
-    // ── Sighting hotspots (separate try/catch, same reasoning as risk score) ──
+    // ── Sighting hotspots ────────────────────────────────────────────────────
     try {
       const hotspotRes = await api.get('/ml/hotspots');
       if (hotspotRes.data.success) {
@@ -190,7 +197,7 @@ const ResearcherDashboard = () => {
       setHotspotError(err.response?.data?.message || 'ML scoring service unavailable.');
     }
 
-    // ── Anomaly detection (separate try/catch, same reasoning as the others) ──
+    // ── Anomaly detection ────────────────────────────────────────────────────
     try {
       const anomalyRes = await api.get('/ml/anomalies');
       if (anomalyRes.data.success) {
@@ -205,6 +212,31 @@ const ResearcherDashboard = () => {
     } catch (err) {
       console.error('Anomaly detection fetch failed:', err);
       setAnomalyError(err.response?.data?.message || 'ML scoring service unavailable.');
+    }
+
+    // ── Forecast ──────────────────────────────────────────────────────────────
+    try {
+      const forecastRes = await api.get('/ml/forecast-sightings');
+      if (forecastRes.data.success) {
+        setForecastProjected(forecastRes.data.data.projected || []);
+        setForecastMessage(forecastRes.data.data.message || null);
+        setForecastError(null);
+      }
+    } catch (err) {
+      console.error('Forecast fetch failed:', err);
+      setForecastError(err.response?.data?.message || 'ML scoring service unavailable.');
+    }
+
+    // ── Species co-occurrence ────────────────────────────────────────────────
+    try {
+      const coOccRes = await api.get('/ml/species-cooccurrence');
+      if (coOccRes.data.success) {
+        setCoOccurrencePairs(coOccRes.data.data.pairs || []);
+        setCoOccurrenceError(null);
+      }
+    } catch (err) {
+      console.error('Co-occurrence fetch failed:', err);
+      setCoOccurrenceError(err.response?.data?.message || 'ML scoring service unavailable.');
     }
   };
 
@@ -239,6 +271,24 @@ const ResearcherDashboard = () => {
     const severityPart = week.severityVsAveragePct >= 30 ? ', with notably elevated severity' : '';
     return `${countPart}${severityPart}.`;
   };
+
+  // Combined historical + forecast series for the Sightings Over Time chart.
+  // The last historical point is duplicated as the forecast's starting point
+  // (projected: same value) so the dashed line connects seamlessly instead
+  // of jumping from nothing.
+  const combinedTrendData = [
+    ...monthlyTrends.map(m => ({ month: m.month, sightings: m.sightings })),
+    ...(monthlyTrends.length > 0 ? [{
+      month: monthlyTrends[monthlyTrends.length - 1].month,
+      projected: monthlyTrends[monthlyTrends.length - 1].sightings,
+    }] : []),
+    ...forecastProjected.map(p => ({
+      month: p.month,
+      projected: p.predictedCount,
+      lower: p.lowerBound,
+      upper: p.upperBound,
+    })),
+  ];
 
   // ── Battery colour helper ───────────────────────────────────────────────────
   const batteryColor = (level) => {
@@ -333,45 +383,53 @@ const ResearcherDashboard = () => {
           </div>
         </div>
 
-        {/* ── Sightings Over Time ──────────────────────────────────────────── */}
+        {/* ── Sightings Over Time (with ML forecast) ────────────────────────── */}
         <div className="border border-bush-line bg-bush-surface p-6 mb-8">
           <div className="flex items-center mb-4">
             <TrendingUp className="h-4 w-4 text-teal mr-2" />
             <h2 className="font-display text-base font-semibold">Sightings Over Time</h2>
-            <span className="ml-2 font-mono text-[11px] text-bone/40">(last 12 months)</span>
+            <span className="ml-2 font-mono text-[11px] text-bone/40">
+              (last 12 months{forecastProjected.length > 0 ? ' + 3-month ML forecast' : ''})
+            </span>
           </div>
           {monthlyTrends.length === 0 ? (
             <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-12">No trend data available</p>
           ) : (
-            <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={monthlyTrends}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#3A4433" />
-                <XAxis dataKey="month" stroke="#A8AE9C" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
-                <YAxis yAxisId="left" stroke="#A8AE9C" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
-                <YAxis yAxisId="right" orientation="right" stroke="#A8AE9C" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
-                <Tooltip contentStyle={{ background: '#242D1F', border: '1px solid #3A4433', color: '#EDE6D3', fontFamily: 'IBM Plex Mono' }} />
-                <Legend wrapperStyle={{ fontFamily: 'IBM Plex Mono', fontSize: 11 }} />
-                <Line
-                  yAxisId="left"
-                  type="monotone"
-                  dataKey="sightings"
-                  stroke="#4A7C7C"
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  name="Sightings"
-                />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="totalAnimals"
-                  stroke="#C98A3E"
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  dot={{ r: 3 }}
-                  name="Total Animals"
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <>
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={combinedTrendData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#3A4433" />
+                  <XAxis dataKey="month" stroke="#A8AE9C" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
+                  <YAxis yAxisId="left" stroke="#A8AE9C" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
+                  <YAxis yAxisId="right" orientation="right" stroke="#A8AE9C" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
+                  <Tooltip contentStyle={{ background: '#242D1F', border: '1px solid #3A4433', color: '#EDE6D3', fontFamily: 'IBM Plex Mono' }} />
+                  <Legend wrapperStyle={{ fontFamily: 'IBM Plex Mono', fontSize: 11 }} />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="sightings"
+                    stroke="#4A7C7C"
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                    name="Sightings"
+                  />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="projected"
+                    stroke="#C98A3E"
+                    strokeWidth={2}
+                    strokeDasharray="6 4"
+                    dot={{ r: 3 }}
+                    name="Forecast (ML)"
+                    connectNulls
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+              {forecastMessage && (
+                <p className="mt-2 font-mono text-[11px] text-bone/40">{forecastMessage}</p>
+              )}
+            </>
           )}
         </div>
 
@@ -580,7 +638,7 @@ const ResearcherDashboard = () => {
             This is unsupervised clustering (DBSCAN), not a prediction — it's
             describing where activity is actually concentrated right now, which
             is useful for planning where to focus patrols or research effort.
-          ═══════════════════════════════════════════════════════════════════════ */}
+           ═══════════════════════════════════════════════════════════════════════ */}
         <div className="border border-bush-line bg-bush-surface p-6 mb-8">
           <div className="flex items-center mb-4">
             <Radio className="h-4 w-4 text-teal mr-2" />
@@ -609,7 +667,6 @@ const ResearcherDashboard = () => {
                     center={[cluster.centerLat, cluster.centerLng]}
                     radius={cluster.radiusMeters}
                     pathOptions={{
-                      // Bigger hotspots get a more intense ochre; small ones stay teal
                       color: cluster.pointCount >= 10 ? '#B5432F' : cluster.pointCount >= 5 ? '#C98A3E' : '#4A7C7C',
                       fillColor: cluster.pointCount >= 10 ? '#B5432F' : cluster.pointCount >= 5 ? '#C98A3E' : '#4A7C7C',
                       fillOpacity: 0.25,
@@ -637,8 +694,7 @@ const ResearcherDashboard = () => {
 
             Flags weeks where incident activity looks statistically unusual, then
             explains WHY (count/severity deviation from the average) and lets you
-            drill into the actual incidents behind a flagged week — not just a
-            colored bar with no justification.
+            drill into the actual incidents behind a flagged week.
            ═══════════════════════════════════════════════════════════════════════ */}
         <div className="border border-bush-line bg-bush-surface p-6 mb-8">
           <div className="flex items-center mb-4">
@@ -692,7 +748,7 @@ const ResearcherDashboard = () => {
                       >
                         <div className="flex items-center gap-2">
                           {expandedWeek?.weekStart === week.weekStart ? (
-                            <ChevronDownIcon className="h-3.5 w-3.5 text-rust flex-shrink-0" />
+                            <ChevronDown className="h-3.5 w-3.5 text-rust flex-shrink-0" />
                           ) : (
                             <ChevronRight className="h-3.5 w-3.5 text-rust flex-shrink-0" />
                           )}
@@ -740,6 +796,50 @@ const ResearcherDashboard = () => {
                 </div>
               )}
             </>
+          )}
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════════════════
+            SPECIES CO-OCCURRENCE (statistical association — "lift" score)
+
+            Finds species pairs seen together more often than chance would predict,
+            correcting for how common each species already is.
+           ═══════════════════════════════════════════════════════════════════════ */}
+        <div className="border border-bush-line bg-bush-surface p-6 mb-8">
+          <div className="flex items-center mb-4">
+            <GitBranch className="h-4 w-4 text-teal mr-2" />
+            <h2 className="font-display text-base font-semibold">Species Co-occurrence</h2>
+            <span className="ml-2 font-mono text-[11px] text-bone/40">Lift score — higher = more often seen together than by chance</span>
+          </div>
+
+          {coOccurrenceError ? (
+            <p className="text-center font-mono text-xs uppercase tracking-widest text-rust py-8">{coOccurrenceError}</p>
+          ) : coOccurrencePairs.length === 0 ? (
+            <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-8">
+              Not enough overlapping sighting data yet
+            </p>
+          ) : (
+            <div className="border border-bush-line">
+              {coOccurrencePairs.map((pair, i) => (
+                <div key={i} className="field-tag">
+                  <div className="flex-1 flex justify-between items-center gap-4">
+                    <div>
+                      <h4 className="font-display font-semibold text-sm">
+                        {pair.speciesA} <span className="text-bone/40 font-body font-normal">&amp;</span> {pair.speciesB}
+                      </h4>
+                      <p className="font-mono text-[11px] text-bone/50 mt-1">
+                        Seen together {pair.coOccurrenceDays} days &middot; {pair.speciesA}: {pair.daysSeenA} days &middot; {pair.speciesB}: {pair.daysSeenB} days
+                      </p>
+                    </div>
+                    <span className={`font-mono text-sm font-bold px-2 py-1 border flex-shrink-0 ${
+                      pair.lift >= 2 ? 'border-ochre text-ochre' : 'border-teal text-teal'
+                    }`}>
+                      {pair.lift}x
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
@@ -799,7 +899,7 @@ const ResearcherDashboard = () => {
           </div>
         </div>
 
-        {/* ── Recent Sightings Table ────────────────────────────────────────── */}
+        {/* ── Recent Sightings Table (progressive loading, issue #6) ────────── */}
         <div className="border border-bush-line bg-bush-surface p-6">
           <h2 className="font-display text-base font-semibold mb-4">Recent Sightings</h2>
           <div className="overflow-x-auto border border-bush-line">

@@ -147,13 +147,6 @@ router.get('/hotspots', authMiddleware, async (req, res) => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-// GET /api/ml/anomalies
-//
-// Now sends weekStart/weekEnd (actual ISO dates, not just display labels)
-// so the frontend can query GET /api/incidents?startDate=...&endDate=...
-// for a flagged week's real incidents — this is what powers the drill-down.
-// ═══════════════════════════════════════════════════════════════════════════
 router.get('/anomalies', authMiddleware, async (req, res) => {
   try {
     const weekRows = await sequelize.query(
@@ -187,7 +180,7 @@ router.get('/anomalies', authMiddleware, async (req, res) => {
         const weekStart = new Date(w.week);
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekEnd.getDate() + 6);
-        weekEnd.setHours(23, 59, 59, 999); // include the whole last day
+        weekEnd.setHours(23, 59, 59, 999);
 
         return {
           weekLabel: weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -218,6 +211,128 @@ router.get('/anomalies', authMiddleware, async (req, res) => {
       message: 'Failed to detect anomalies.',
       error: error.message,
     });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GET /api/ml/forecast-sightings
+//
+// Same monthly aggregation approach as reports.js's sighting-trends route,
+// but forwarded to Flask's regression forecaster instead of just returning
+// the historical numbers.
+// ═══════════════════════════════════════════════════════════════════════════
+router.get('/forecast-sightings', authMiddleware, async (req, res) => {
+  try {
+    const monthKeys = getLast12MonthKeys();
+
+    const monthlyRows = await sequelize.query(
+      `
+      SELECT DATE_TRUNC('month', "sightingDate") as month, COUNT(*) as count
+      FROM sightings
+      WHERE "sightingDate" >= NOW() - INTERVAL '12 months'
+      GROUP BY month
+      ORDER BY month ASC
+      `,
+      { type: sequelize.QueryTypes.SELECT }
+    );
+
+    const countsByMonth = monthKeys.reduce((acc, m) => ({ ...acc, [m]: 0 }), {});
+    monthlyRows.forEach((row) => {
+      const monthKey = new Date(row.month).toISOString().slice(0, 7);
+      if (monthKey in countsByMonth) {
+        countsByMonth[monthKey] = parseInt(row.count, 10);
+      }
+    });
+
+    const payload = {
+      monthlyCounts: monthKeys.map((m) => countsByMonth[m]),
+      periods: 3,
+    };
+
+    let mlResponse;
+    try {
+      mlResponse = await axios.post(`${ML_SERVICE_URL}/forecast-trend`, payload, { timeout: 15000 });
+    } catch (mlError) {
+      console.error('Forecast call failed:', mlError.message);
+      return res.status(503).json({
+        success: false,
+        message: 'The ML scoring service is not reachable. Make sure it is running (cd ml-service && python app.py).',
+      });
+    }
+
+    // Build future month labels (e.g. "Sep 26") to pair with Flask's numbers
+    const now = new Date();
+    const projected = (mlResponse.data.data.projected || []).map((p) => {
+      const futureDate = new Date(now.getFullYear(), now.getMonth() + p.monthsAhead, 1);
+      return {
+        ...p,
+        month: futureDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        ...mlResponse.data.data,
+        projected,
+      },
+    });
+  } catch (error) {
+    console.error('Forecast error:', error);
+    res.status(500).json({ success: false, message: 'Failed to compute forecast.', error: error.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GET /api/ml/species-cooccurrence
+//
+// Buckets sightings by calendar day, gets the distinct species seen each
+// day, and sends that to Flask to compute pairwise "lift" scores — see
+// app.py for the full explanation of why lift instead of a raw count.
+// ═══════════════════════════════════════════════════════════════════════════
+router.get('/species-cooccurrence', authMiddleware, async (req, res) => {
+  try {
+    const rows = await sequelize.query(
+      `
+      SELECT DISTINCT DATE(si."sightingDate") as day, sp."commonName"
+      FROM sightings si
+      JOIN species sp ON sp.id = si."speciesId"
+      `,
+      { type: sequelize.QueryTypes.SELECT }
+    );
+
+    if (rows.length === 0) {
+      return res.status(200).json({ success: true, data: { pairs: [], totalDays: 0 } });
+    }
+
+    // Group into { 'YYYY-MM-DD': [speciesName, speciesName, ...] }
+    const speciesByDay = {};
+    rows.forEach((row) => {
+      const dayKey = new Date(row.day).toISOString().slice(0, 10);
+      if (!speciesByDay[dayKey]) speciesByDay[dayKey] = [];
+      speciesByDay[dayKey].push(row.commonName);
+    });
+
+    const payload = {
+      dailySpeciesLists: Object.values(speciesByDay),
+      minCoOccurrences: 3,
+    };
+
+    let mlResponse;
+    try {
+      mlResponse = await axios.post(`${ML_SERVICE_URL}/species-cooccurrence`, payload, { timeout: 15000 });
+    } catch (mlError) {
+      console.error('Co-occurrence call failed:', mlError.message);
+      return res.status(503).json({
+        success: false,
+        message: 'The ML scoring service is not reachable. Make sure it is running (cd ml-service && python app.py).',
+      });
+    }
+
+    res.status(200).json({ success: true, data: mlResponse.data.data });
+  } catch (error) {
+    console.error('Co-occurrence error:', error);
+    res.status(500).json({ success: false, message: 'Failed to compute species co-occurrence.', error: error.message });
   }
 });
 
