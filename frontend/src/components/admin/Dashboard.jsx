@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 // Added CheckCircle to imports
-import { Users, Layers, Eye, AlertTriangle, Activity, TrendingUp, CheckCircle } from 'lucide-react';
+import { Users, Layers, Eye, AlertTriangle, Activity, TrendingUp, CheckCircle, ShieldAlert, UserCog } from 'lucide-react';
 import Navbar from '../shared/Navbar';
 import authService from '../../services/auth';
 import api from '../../services/api';
@@ -17,6 +17,12 @@ const AdminDashboard = () => {
   // New State for handling button loading status
   const [processingId, setProcessingId] = useState(null);
   const navigate = useNavigate();
+
+  // ── ML: verification priority + user activity anomalies (admin only) ──────
+  const [verificationPriority, setVerificationPriority] = useState([]);
+  const [verificationError, setVerificationError] = useState(null);
+  const [userAnomalies, setUserAnomalies] = useState([]);
+  const [userAnomalyError, setUserAnomalyError] = useState(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -41,6 +47,28 @@ const AdminDashboard = () => {
       }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
+    }
+
+    try {
+      const vpRes = await api.get('/ml/verification-priority');
+      if (vpRes.data.success) {
+        setVerificationPriority(vpRes.data.data.scores);
+        setVerificationError(null);
+      }
+    } catch (err) {
+      console.error('Verification priority fetch failed:', err);
+      setVerificationError(err.response?.data?.message || 'ML scoring service unavailable.');
+    }
+
+    try {
+      const uaRes = await api.get('/ml/user-activity-anomalies');
+      if (uaRes.data.success) {
+        setUserAnomalies(uaRes.data.data.users);
+        setUserAnomalyError(null);
+      }
+    } catch (err) {
+      console.error('User activity anomaly fetch failed:', err);
+      setUserAnomalyError(err.response?.data?.message || 'ML scoring service unavailable.');
     } finally {
       setLoading(false);
     }
@@ -126,6 +154,95 @@ const AdminDashboard = () => {
               <p className="font-mono text-[11px] uppercase tracking-widest text-bone/70">View Reports</p>
             </button>
           </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════════════════
+            SIGHTING VERIFICATION PRIORITY (ML — weighted composite, explainable)
+
+            Ranks PENDING sightings by how much they deserve scrutiny before you
+            approve them — species rarity, unusual location for that species,
+            unusual count, and the reporter's track record. Unlike the exploratory
+            ML on the researcher dashboard, this gates a real decision, so it's
+            deliberately transparent (every component of the score is shown) —
+            not a black-box model.
+           ═══════════════════════════════════════════════════════════════════════ */}
+        <div className="border border-bush-line bg-bush-surface p-6 mb-8">
+          <div className="flex items-center mb-4">
+            <ShieldAlert className="h-4 w-4 text-ochre mr-2" />
+            <h2 className="font-display text-base font-semibold">Verification Priority</h2>
+            <span className="ml-2 font-mono text-[11px] text-bone/40">ML-ranked, pending sightings needing closer review</span>
+          </div>
+
+          {verificationError ? (
+            <p className="text-center font-mono text-xs uppercase tracking-widest text-rust py-8">{verificationError}</p>
+          ) : verificationPriority.length === 0 ? (
+            <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-8">No pending sightings</p>
+          ) : (
+            <div className="border border-bush-line">
+              {verificationPriority.slice(0, 8).map((v) => (
+                <div key={v.sightingId} className="field-tag">
+                  <div className="flex-1 flex justify-between items-center gap-4">
+                    <div>
+                      <h4 className="font-display font-semibold text-sm">{v.commonName}</h4>
+                      <p className="font-mono text-[11px] text-bone/50 mt-1">
+                        {v.count} individuals &middot; reported by {v.reporterName}
+                        {v.breakdown.distanceFromSpeciesCentroidKm != null &&
+                          ` \u00b7 ${v.breakdown.distanceFromSpeciesCentroidKm}km from typical location`}
+                      </p>
+                    </div>
+                    <span className={`font-mono text-[10px] uppercase tracking-widest px-2 py-1 border flex-shrink-0 ${
+                      v.priorityLevel === 'Critical' ? 'border-rust text-rust' :
+                      v.priorityLevel === 'High' ? 'border-ochre text-ochre' :
+                      v.priorityLevel === 'Medium' ? 'border-ochre-dim text-ochre' :
+                      'border-teal text-teal'
+                    }`}>
+                      {v.priorityLevel} &middot; {v.priorityScore}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════════════════
+            USER ACTIVITY ANOMALY DETECTION (statistical — per-user z-score)
+
+            Each ranger/researcher compared only to their OWN history — a spike
+            or drop in this week's activity relative to what's normal for THEM.
+           ═══════════════════════════════════════════════════════════════════════ */}
+        <div className="border border-bush-line bg-bush-surface p-6 mb-8">
+          <div className="flex items-center mb-4">
+            <UserCog className="h-4 w-4 text-teal mr-2" />
+            <h2 className="font-display text-base font-semibold">User Activity Anomalies</h2>
+            <span className="ml-2 font-mono text-[11px] text-bone/40">Per-user z-score vs their own 8-week baseline</span>
+          </div>
+
+          {userAnomalyError ? (
+            <p className="text-center font-mono text-xs uppercase tracking-widest text-rust py-8">{userAnomalyError}</p>
+          ) : userAnomalies.filter(u => u.isAnomaly).length === 0 ? (
+            <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-8">No unusual activity detected</p>
+          ) : (
+            <div className="border border-bush-line">
+              {userAnomalies.filter(u => u.isAnomaly).map((u) => (
+                <div key={u.userId} className="field-tag">
+                  <div className="flex-1 flex justify-between items-center gap-4">
+                    <div>
+                      <h4 className="font-display font-semibold text-sm">{u.name}</h4>
+                      <p className="font-mono text-[11px] text-bone/50 mt-1">
+                        {u.latestWeekCount} this week vs usual {u.historicalMean} &middot; z-score {u.zScore}
+                      </p>
+                    </div>
+                    <span className={`font-mono text-[10px] uppercase tracking-widest px-2 py-1 border flex-shrink-0 ${
+                      u.direction === 'spike' ? 'border-ochre text-ochre' : 'border-teal text-teal'
+                    }`}>
+                      {u.direction === 'spike' ? 'Spike' : 'Drop'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Statistics Grid */}
