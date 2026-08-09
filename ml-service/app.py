@@ -207,33 +207,6 @@ def detect_anomalies():
     })
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# POPULATION TREND FORECASTING
-#
-# What this does:
-#   Takes the last 12 months of total sighting counts and projects forward
-#   a few months using linear regression — the same technique used for the
-#   trend component of the risk score, but here the OUTPUT is the actual
-#   forecast itself (a number for future months), not just a direction.
-#
-# Why a confidence band, and why it's naive (say this out loud when
-# presenting — it's honest, and honesty about a model's limits is itself
-# a sign of understanding it, not a weakness):
-#   The band here is built from the standard deviation of the regression's
-#   RESIDUALS (how far actual points were from the fitted line) on the
-#   historical data, projected forward as a constant ±1.96 std-dev range
-#   (~95% under a normal-distribution assumption). This is a simple,
-#   defensible approach for a small dataset, but it assumes:
-#     - The trend stays linear (a real population could plateau, spike
-#       seasonally, or reverse — this model has no way to know that)
-#     - Variance stays constant over time (uncertainty doesn't actually
-#       grow the further out you forecast, which is unrealistic — a real
-#       production system would widen the band the further into the
-#       future it projects)
-#   With only 12 months of data, this is a reasonable first pass, not a
-#   claim of precise future population numbers.
-# ═══════════════════════════════════════════════════════════════════════════
-
 @app.route('/forecast-trend', methods=['POST'])
 def forecast_trend():
     body = request.get_json(force=True)
@@ -252,8 +225,6 @@ def forecast_trend():
     model = LinearRegression()
     model.fit(X, counts)
 
-    # Residual std dev — how much actual points deviated from the fitted
-    # line historically — used as a (constant, simplified) uncertainty band
     predictions_on_history = model.predict(X)
     residual_std = float(np.std(counts - predictions_on_history))
 
@@ -262,7 +233,7 @@ def forecast_trend():
 
     projected = []
     for i, pred in enumerate(future_predictions):
-        pred_clamped = max(0.0, float(pred))  # sightings can't be negative
+        pred_clamped = max(0.0, float(pred))
         projected.append({
             'monthsAhead': i + 1,
             'predictedCount': round(pred_clamped, 1),
@@ -272,44 +243,9 @@ def forecast_trend():
 
     return jsonify({
         'success': True,
-        'data': {
-            'projected': projected,
-            'slope': round(float(model.coef_[0]), 3),
-            'residualStdDev': round(residual_std, 2),
-        },
+        'data': {'projected': projected, 'slope': round(float(model.coef_[0]), 3), 'residualStdDev': round(residual_std, 2)},
     })
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# SPECIES CO-OCCURRENCE ANALYSIS
-#
-# What this does:
-#   Finds pairs of species that tend to be sighted together (same day,
-#   somewhere in the park) more often than you'd expect by pure chance.
-#
-# Why "lift" and not just a raw co-occurrence count:
-#   A naive count is misleading. Two very COMMON species (say, seen most
-#   days regardless of anything) will rack up a high raw co-occurrence
-#   count simply because they're both around all the time — not because
-#   there's any real relationship between them. This is the same
-#   confounding problem as the hotspot clustering with uniform random
-#   data: raw numbers can look meaningful when they're really just an
-#   artifact of frequency.
-#
-#   "Lift" (a standard concept from association rule mining — the same
-#   math behind "customers who bought X also bought Y" engines) corrects
-#   for this:
-#
-#       lift(A, B) = P(A and B together) / (P(A) * P(B))
-#
-#   lift = 1   → A and B co-occur exactly as often as random chance predicts
-#   lift > 1   → they co-occur MORE than chance — a real association
-#   lift < 1   → they co-occur LESS than chance — they may avoid each other
-#
-#   A lift of 3.0 means "these two species are seen together 3x more
-#   often than you'd expect if their sightings were independent of each
-#   other" — a much more honest signal than a raw count.
-# ═══════════════════════════════════════════════════════════════════════════
 
 @app.route('/species-cooccurrence', methods=['POST'])
 def species_cooccurrence():
@@ -321,13 +257,11 @@ def species_cooccurrence():
     if total_days == 0:
         return jsonify({'success': True, 'data': {'pairs': [], 'totalDays': 0}})
 
-    # How many days did each species appear on at all (its "marginal" count)
     species_day_counts = {}
-    # How many days did each PAIR of species both appear on
     pair_day_counts = {}
 
     for species_on_day in daily_species_lists:
-        unique_species = sorted(set(species_on_day))  # de-dupe multiple sightings same day
+        unique_species = sorted(set(species_on_day))
 
         for sp in unique_species:
             species_day_counts[sp] = species_day_counts.get(sp, 0) + 1
@@ -339,7 +273,7 @@ def species_cooccurrence():
     results = []
     for (sp_a, sp_b), co_days in pair_day_counts.items():
         if co_days < min_co_occurrences:
-            continue  # too few joint sightings to trust the signal
+            continue
 
         p_a = species_day_counts[sp_a] / total_days
         p_b = species_day_counts[sp_b] / total_days
@@ -357,8 +291,182 @@ def species_cooccurrence():
         })
 
     results.sort(key=lambda r: r['lift'], reverse=True)
-
     return jsonify({'success': True, 'data': {'pairs': results[:15], 'totalDays': total_days}})
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SIGHTING VERIFICATION PRIORITY SCORING
+#
+# What this does:
+#   Scores each PENDING (unverified) sighting on how much it deserves a
+#   close look before an admin approves it — as opposed to treating every
+#   pending sighting identically (which is what blind bulk-approval does).
+#
+# Why this is a weighted composite, NOT a black-box model like Isolation
+# Forest (deliberate methodology choice, worth stating explicitly when
+# presenting this):
+#   The other anomaly-detection features here (incident weeks) are
+#   exploratory — a researcher looks at a chart and investigates further.
+#   This one gates a real ADMIN DECISION (approve/reject a data record).
+#   An admin needs to trust WHY something was flagged before acting on it,
+#   not just see a black-box score. A transparent weighted sum, where every
+#   component can be shown and explained, is the more honest tool here —
+#   same reasoning already applied to the Conservation Risk Score.
+#
+# Four signals, each 0-1 before weighting:
+#   1. Species rarity   — a claimed sighting of a rare/endangered species
+#                          deserves more scrutiny than a common one, since
+#                          getting it wrong matters more
+#   2. Location anomaly — how far this sighting's coordinates are from
+#                          where this species has historically, verifiably
+#                          been seen (using already-VERIFIED sightings only
+#                          as the reference, so unverified noise doesn't
+#                          contaminate the baseline)
+#   3. Count anomaly    — how far the reported count deviates from that
+#                          species' historical average count per sighting
+#   4. Reporter risk    — inverse of the reporting ranger's historical
+#                          verification rate (if most of their past
+#                          sightings never got verified, or were disputed,
+#                          weight new ones from them slightly higher)
+# ═══════════════════════════════════════════════════════════════════════════
+
+VERIFICATION_WEIGHTS = {'rarity': 0.3, 'location': 0.3, 'count': 0.2, 'reporter': 0.2}
+
+
+@app.route('/score-verification-priority', methods=['POST'])
+def score_verification_priority():
+    body = request.get_json(force=True)
+    pending = body.get('sightings', [])
+
+    if not pending:
+        return jsonify({'success': True, 'data': {'scores': []}})
+
+    results = []
+    for s in pending:
+        rarity_score = STATUS_WEIGHTS.get(s.get('conservationStatus', 'LC'), 0.0)
+
+        # Location anomaly: distance in km from this species' historical
+        # verified-sighting centroid, normalized against a "this is far"
+        # reference of 10km (roughly a third of the park's width) — a
+        # simple, presentable normalization rather than a learned one.
+        distance_km = s.get('distanceFromSpeciesCentroidKm')
+        if distance_km is None:
+            location_score = 0.0  # no history to compare against yet — not "safe," just no signal
+        else:
+            location_score = max(0.0, min(1.0, distance_km / 10.0))
+
+        # Count anomaly: relative deviation from this species' historical
+        # average count-per-sighting
+        historical_avg = s.get('speciesHistoricalAvgCount')
+        reported_count = s.get('count', 1)
+        if not historical_avg or historical_avg == 0:
+            count_score = 0.0
+        else:
+            count_score = max(0.0, min(1.0, abs(reported_count - historical_avg) / historical_avg))
+
+        # Reporter risk: inverse of their historical verification rate.
+        # A brand-new reporter with no history yet gets a neutral 0.5 —
+        # not flagged as risky, but not given a clean pass either.
+        verification_rate = s.get('reporterVerificationRate')
+        reporter_score = 0.5 if verification_rate is None else max(0.0, min(1.0, 1.0 - verification_rate))
+
+        composite = (
+            VERIFICATION_WEIGHTS['rarity'] * rarity_score
+            + VERIFICATION_WEIGHTS['location'] * location_score
+            + VERIFICATION_WEIGHTS['count'] * count_score
+            + VERIFICATION_WEIGHTS['reporter'] * reporter_score
+        )
+        composite = max(0.0, min(1.0, composite))
+
+        results.append({
+            'sightingId': s.get('sightingId'),
+            'priorityScore': round(composite * 100, 1),
+            'priorityLevel': classify_risk_level(composite),  # reuses Low/Medium/High/Critical bands
+            'breakdown': {
+                'raritySignal': round(rarity_score * 100, 1),
+                'locationSignal': round(location_score * 100, 1),
+                'countSignal': round(count_score * 100, 1),
+                'reporterSignal': round(reporter_score * 100, 1),
+                'distanceFromSpeciesCentroidKm': round(distance_km, 2) if distance_km is not None else None,
+            },
+        })
+
+    results.sort(key=lambda r: r['priorityScore'], reverse=True)
+    return jsonify({'success': True, 'data': {'scores': results}})
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# USER ACTIVITY ANOMALY DETECTION
+#
+# What this does:
+#   For each ranger/researcher, checks whether their MOST RECENT week of
+#   activity looks unusual COMPARED TO THEIR OWN HISTORY — not compared to
+#   other users. This distinction matters: different rangers naturally
+#   submit very different volumes, so comparing raw counts across users
+#   would just flag "whoever submits the most" as anomalous, which is
+#   meaningless. Comparing each person only to their OWN baseline is the
+#   correct framing for "did something change for this person."
+#
+# Why plain z-scores here, not another sklearn model (worth saying this
+# out loud — it demonstrates knowing when NOT to reach for a heavier tool):
+#   With only a handful of weeks of history per user, there isn't enough
+#   data for a model like Isolation Forest to learn anything meaningful
+#   per-person. A z-score — how many standard deviations the latest week
+#   is from that person's own mean — is simple, fully interpretable
+#   ("this week was 2.4 standard deviations above their usual"), and is
+#   the statistically appropriate tool for this specific, smaller-data
+#   situation. Not every "AI feature" needs to be a trained model.
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.route('/detect-user-activity-anomalies', methods=['POST'])
+def detect_user_activity_anomalies():
+    body = request.get_json(force=True)
+    users = body.get('users', [])
+
+    results = []
+    for u in users:
+        weekly_counts = np.array(u.get('weeklyCounts', []), dtype=float)
+
+        if len(weekly_counts) < 3:
+            results.append({
+                'userId': u.get('userId'),
+                'latestWeekCount': int(weekly_counts[-1]) if len(weekly_counts) else 0,
+                'zScore': None,
+                'isAnomaly': False,
+                'message': 'Not enough history yet',
+            })
+            continue
+
+        # Baseline = all weeks EXCEPT the most recent one, so the most
+        # recent week is being compared against what came before it, not
+        # partly against itself
+        history = weekly_counts[:-1]
+        latest = weekly_counts[-1]
+
+        mean = float(history.mean())
+        std = float(history.std())
+
+        if std == 0:
+            # Perfectly consistent history (e.g. always exactly 3/week) —
+            # any deviation at all is meaningful, but a z-score would
+            # divide by zero, so flag directly instead
+            z_score = None
+            is_anomaly = latest != mean
+        else:
+            z_score = (latest - mean) / std
+            is_anomaly = abs(z_score) >= 2.0  # ~95% threshold under a normal-distribution assumption
+
+        results.append({
+            'userId': u.get('userId'),
+            'latestWeekCount': int(latest),
+            'historicalMean': round(mean, 1),
+            'zScore': round(float(z_score), 2) if z_score is not None else None,
+            'isAnomaly': bool(is_anomaly),
+            'direction': 'spike' if (z_score or 0) > 0 else 'drop' if (z_score or 0) < 0 else None,
+        })
+
+    results.sort(key=lambda r: abs(r['zScore']) if r['zScore'] is not None else -1, reverse=True)
+    return jsonify({'success': True, 'data': {'users': results}})
 
 
 if __name__ == '__main__':

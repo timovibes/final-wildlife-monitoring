@@ -1,7 +1,8 @@
 const express = require('express');
 const axios = require('axios');
-const { sequelize, Species } = require('../models');
+const { sequelize, Species, User } = require('../models');
 const authMiddleware = require('../middleware/auth');
+const roleCheck = require('../middleware/roleCheck');
 
 const router = express.Router();
 
@@ -214,13 +215,6 @@ router.get('/anomalies', authMiddleware, async (req, res) => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-// GET /api/ml/forecast-sightings
-//
-// Same monthly aggregation approach as reports.js's sighting-trends route,
-// but forwarded to Flask's regression forecaster instead of just returning
-// the historical numbers.
-// ═══════════════════════════════════════════════════════════════════════════
 router.get('/forecast-sightings', authMiddleware, async (req, res) => {
   try {
     const monthKeys = getLast12MonthKeys();
@@ -260,7 +254,6 @@ router.get('/forecast-sightings', authMiddleware, async (req, res) => {
       });
     }
 
-    // Build future month labels (e.g. "Sep 26") to pair with Flask's numbers
     const now = new Date();
     const projected = (mlResponse.data.data.projected || []).map((p) => {
       const futureDate = new Date(now.getFullYear(), now.getMonth() + p.monthsAhead, 1);
@@ -272,10 +265,7 @@ router.get('/forecast-sightings', authMiddleware, async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: {
-        ...mlResponse.data.data,
-        projected,
-      },
+      data: { ...mlResponse.data.data, projected },
     });
   } catch (error) {
     console.error('Forecast error:', error);
@@ -283,13 +273,6 @@ router.get('/forecast-sightings', authMiddleware, async (req, res) => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-// GET /api/ml/species-cooccurrence
-//
-// Buckets sightings by calendar day, gets the distinct species seen each
-// day, and sends that to Flask to compute pairwise "lift" scores — see
-// app.py for the full explanation of why lift instead of a raw count.
-// ═══════════════════════════════════════════════════════════════════════════
 router.get('/species-cooccurrence', authMiddleware, async (req, res) => {
   try {
     const rows = await sequelize.query(
@@ -305,7 +288,6 @@ router.get('/species-cooccurrence', authMiddleware, async (req, res) => {
       return res.status(200).json({ success: true, data: { pairs: [], totalDays: 0 } });
     }
 
-    // Group into { 'YYYY-MM-DD': [speciesName, speciesName, ...] }
     const speciesByDay = {};
     rows.forEach((row) => {
       const dayKey = new Date(row.day).toISOString().slice(0, 10);
@@ -333,6 +315,222 @@ router.get('/species-cooccurrence', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Co-occurrence error:', error);
     res.status(500).json({ success: false, message: 'Failed to compute species co-occurrence.', error: error.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GET /api/ml/verification-priority — Admin only
+//
+// For every PENDING sighting, gathers the four signals Flask's weighted
+// scorer needs: species rarity (from the species record itself), distance
+// from that species' historically VERIFIED sighting locations, deviation
+// from that species' historical average count, and the reporting ranger's
+// historical verification rate. See app.py for why this is a transparent
+// weighted composite rather than a black-box model.
+// ═══════════════════════════════════════════════════════════════════════════
+router.get('/verification-priority', authMiddleware, roleCheck('admin'), async (req, res) => {
+  try {
+    const pendingSightings = await sequelize.query(
+      `
+      SELECT si.id, si.count, si.latitude, si.longitude, si."speciesId", si."observerId",
+             sp."commonName", sp."conservationStatus",
+             u."firstName", u."lastName"
+      FROM sightings si
+      JOIN species sp ON sp.id = si."speciesId"
+      JOIN users u ON u.id = si."observerId"
+      WHERE si.verified = false
+      `,
+      { type: sequelize.QueryTypes.SELECT }
+    );
+
+    if (pendingSightings.length === 0) {
+      return res.status(200).json({ success: true, data: { scores: [] } });
+    }
+
+    // Historical stats per species, built ONLY from already-verified
+    // sightings, so unverified noise doesn't contaminate the "normal"
+    // baseline we're comparing pending sightings against.
+    const speciesStatsRows = await sequelize.query(
+      `
+      SELECT "speciesId",
+             AVG(count) as "avgCount",
+             AVG(latitude) as "avgLat",
+             AVG(longitude) as "avgLng"
+      FROM sightings
+      WHERE verified = true
+      GROUP BY "speciesId"
+      `,
+      { type: sequelize.QueryTypes.SELECT }
+    );
+    const speciesStats = Object.fromEntries(speciesStatsRows.map((r) => [r.speciesId, r]));
+
+    // Reporter verification rate: verified sightings / total sightings,
+    // per observer, again only counting their OTHER sightings (not the
+    // pending one itself, which obviously isn't verified yet).
+    const reporterStatsRows = await sequelize.query(
+      `
+      SELECT "observerId",
+             COUNT(*) FILTER (WHERE verified = true)::float / NULLIF(COUNT(*), 0) as "verificationRate"
+      FROM sightings
+      GROUP BY "observerId"
+      `,
+      { type: sequelize.QueryTypes.SELECT }
+    );
+    const reporterStats = Object.fromEntries(reporterStatsRows.map((r) => [r.observerId, r.verificationRate]));
+
+    // Haversine-lite distance in km — accurate enough at park scale, avoids
+    // pulling in an extra dependency for a single distance calculation.
+    const distanceKm = (lat1, lng1, lat2, lng2) => {
+      const R = 6371;
+      const dLat = ((lat2 - lat1) * Math.PI) / 180;
+      const dLng = ((lng2 - lng1) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    };
+
+    const payload = {
+      sightings: pendingSightings.map((s) => {
+        const stats = speciesStats[s.speciesId];
+        const distanceFromSpeciesCentroidKm = stats
+          ? distanceKm(parseFloat(s.latitude), parseFloat(s.longitude), parseFloat(stats.avgLat), parseFloat(stats.avgLng))
+          : null;
+
+        return {
+          sightingId: s.id,
+          count: s.count,
+          conservationStatus: s.conservationStatus,
+          speciesHistoricalAvgCount: stats ? parseFloat(stats.avgCount) : null,
+          distanceFromSpeciesCentroidKm,
+          reporterVerificationRate:
+            reporterStats[s.observerId] != null ? parseFloat(reporterStats[s.observerId]) : null,
+        };
+      }),
+    };
+
+    let mlResponse;
+    try {
+      mlResponse = await axios.post(`${ML_SERVICE_URL}/score-verification-priority`, payload, { timeout: 15000 });
+    } catch (mlError) {
+      console.error('Verification priority call failed:', mlError.message);
+      return res.status(503).json({
+        success: false,
+        message: 'The ML scoring service is not reachable. Make sure it is running (cd ml-service && python app.py).',
+      });
+    }
+
+    // Merge display info (species name, reporter name) back onto scores
+    const sightingById = Object.fromEntries(pendingSightings.map((s) => [s.id, s]));
+    const scores = mlResponse.data.data.scores.map((score) => {
+      const s = sightingById[score.sightingId];
+      return {
+        ...score,
+        commonName: s.commonName,
+        reporterName: `${s.firstName} ${s.lastName}`,
+        count: s.count,
+      };
+    });
+
+    res.status(200).json({ success: true, data: { scores } });
+  } catch (error) {
+    console.error('Verification priority error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to compute verification priority.',
+      error: error.message,
+    });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GET /api/ml/user-activity-anomalies — Admin only
+//
+// Gathers each ranger/researcher's weekly sighting-submission counts over
+// the last 8 weeks, sends them to Flask for per-user z-score analysis
+// (each person compared only to their OWN history — see app.py for why).
+// ═══════════════════════════════════════════════════════════════════════════
+router.get('/user-activity-anomalies', authMiddleware, roleCheck('admin'), async (req, res) => {
+  try {
+    const users = await User.findAll({
+      where: { role: ['ranger', 'researcher'] },
+      attributes: ['id', 'firstName', 'lastName', 'role'],
+    });
+
+    if (users.length === 0) {
+      return res.status(200).json({ success: true, data: { users: [] } });
+    }
+
+    const weeklyRows = await sequelize.query(
+      `
+      SELECT "observerId", DATE_TRUNC('week', "sightingDate") as week, COUNT(*) as count
+      FROM sightings
+      WHERE "sightingDate" >= NOW() - INTERVAL '8 weeks'
+      GROUP BY "observerId", week
+      ORDER BY "observerId", week ASC
+      `,
+      { type: sequelize.QueryTypes.SELECT }
+    );
+
+    // Build the last 8 week keys so every user gets a zero-filled series,
+    // same zero-fill pattern as the risk score's monthly sightings.
+    const weekKeys = [];
+    const now = new Date();
+    for (let i = 7; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i * 7);
+      weekKeys.push(d.toISOString().slice(0, 10));
+    }
+
+    const countsByUser = {};
+    users.forEach((u) => {
+      countsByUser[u.id] = weekKeys.reduce((acc, w) => ({ ...acc, [w]: 0 }), {});
+    });
+    weeklyRows.forEach((row) => {
+      // Match each row's week to the nearest week bucket — good enough at
+      // week granularity for this purpose.
+      const rowWeek = new Date(row.week).toISOString().slice(0, 10);
+      const closest = weekKeys.reduce((best, w) =>
+        Math.abs(new Date(w) - new Date(rowWeek)) < Math.abs(new Date(best) - new Date(rowWeek)) ? w : best
+      );
+      if (countsByUser[row.observerId]) {
+        countsByUser[row.observerId][closest] += parseInt(row.count, 10);
+      }
+    });
+
+    const payload = {
+      users: users.map((u) => ({
+        userId: u.id,
+        weeklyCounts: weekKeys.map((w) => countsByUser[u.id][w]),
+      })),
+    };
+
+    let mlResponse;
+    try {
+      mlResponse = await axios.post(`${ML_SERVICE_URL}/detect-user-activity-anomalies`, payload, { timeout: 15000 });
+    } catch (mlError) {
+      console.error('User activity anomaly call failed:', mlError.message);
+      return res.status(503).json({
+        success: false,
+        message: 'The ML scoring service is not reachable. Make sure it is running (cd ml-service && python app.py).',
+      });
+    }
+
+    const usersById = Object.fromEntries(users.map((u) => [u.id, u]));
+    const results = mlResponse.data.data.users.map((r) => ({
+      ...r,
+      name: `${usersById[r.userId]?.firstName} ${usersById[r.userId]?.lastName}`,
+      role: usersById[r.userId]?.role,
+    }));
+
+    res.status(200).json({ success: true, data: { users: results } });
+  } catch (error) {
+    console.error('User activity anomaly error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to detect user activity anomalies.',
+      error: error.message,
+    });
   }
 });
 
