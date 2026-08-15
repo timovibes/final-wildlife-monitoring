@@ -207,46 +207,6 @@ def detect_anomalies():
     })
 
 
-@app.route('/forecast-trend', methods=['POST'])
-def forecast_trend():
-    body = request.get_json(force=True)
-    monthly_counts = body.get('monthlyCounts', [])
-    periods = int(body.get('periods', 3))
-
-    counts = np.array(monthly_counts, dtype=float)
-
-    if np.count_nonzero(counts) < 3:
-        return jsonify({
-            'success': True,
-            'data': {'projected': [], 'message': 'Not enough sighting history yet to forecast a trend.'},
-        })
-
-    X = np.arange(len(counts)).reshape(-1, 1)
-    model = LinearRegression()
-    model.fit(X, counts)
-
-    predictions_on_history = model.predict(X)
-    residual_std = float(np.std(counts - predictions_on_history))
-
-    future_X = np.arange(len(counts), len(counts) + periods).reshape(-1, 1)
-    future_predictions = model.predict(future_X)
-
-    projected = []
-    for i, pred in enumerate(future_predictions):
-        pred_clamped = max(0.0, float(pred))
-        projected.append({
-            'monthsAhead': i + 1,
-            'predictedCount': round(pred_clamped, 1),
-            'lowerBound': round(max(0.0, pred_clamped - 1.96 * residual_std), 1),
-            'upperBound': round(pred_clamped + 1.96 * residual_std, 1),
-        })
-
-    return jsonify({
-        'success': True,
-        'data': {'projected': projected, 'slope': round(float(model.coef_[0]), 3), 'residualStdDev': round(residual_std, 2)},
-    })
-
-
 @app.route('/species-cooccurrence', methods=['POST'])
 def species_cooccurrence():
     body = request.get_json(force=True)
