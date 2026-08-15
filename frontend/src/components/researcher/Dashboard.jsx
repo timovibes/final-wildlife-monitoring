@@ -73,11 +73,6 @@ const ResearcherDashboard = () => {
   const [weekIncidents, setWeekIncidents] = useState([]);
   const [weekIncidentsLoading, setWeekIncidentsLoading] = useState(false);
 
-  // ── Forecast state ────────────────────────────────────────────────────────
-  const [forecastProjected, setForecastProjected] = useState([]);
-  const [forecastMessage, setForecastMessage] = useState(null);
-  const [forecastError, setForecastError] = useState(null);
-
   // ── Co-occurrence state ─────────────────────────────────────────────────────
   const [coOccurrencePairs, setCoOccurrencePairs] = useState([]);
   const [coOccurrenceError, setCoOccurrenceError] = useState(null);
@@ -229,19 +224,6 @@ const ResearcherDashboard = () => {
       setAnomalyError(err.response?.data?.message || 'ML scoring service unavailable.');
     }
 
-    // ── Forecast ──────────────────────────────────────────────────────────────
-    try {
-      const forecastRes = await api.get('/ml/forecast-sightings');
-      if (forecastRes.data.success) {
-        setForecastProjected(forecastRes.data.data.projected || []);
-        setForecastMessage(forecastRes.data.data.message || null);
-        setForecastError(null);
-      }
-    } catch (err) {
-      console.error('Forecast fetch failed:', err);
-      setForecastError(err.response?.data?.message || 'ML scoring service unavailable.');
-    }
-
     // ── Species co-occurrence ────────────────────────────────────────────────
     try {
       const coOccRes = await api.get('/ml/species-cooccurrence');
@@ -286,24 +268,6 @@ const ResearcherDashboard = () => {
     const severityPart = week.severityVsAveragePct >= 30 ? ', with notably elevated severity' : '';
     return `${countPart}${severityPart}.`;
   };
-
-  // Combined historical + forecast series for the Sightings Over Time chart.
-  // The last historical point is duplicated as the forecast's starting point
-  // (projected: same value) so the dashed line connects seamlessly instead
-  // of jumping from nothing.
-  const combinedTrendData = [
-    ...monthlyTrends.map(m => ({ month: m.month, sightings: m.sightings })),
-    ...(monthlyTrends.length > 0 ? [{
-      month: monthlyTrends[monthlyTrends.length - 1].month,
-      projected: monthlyTrends[monthlyTrends.length - 1].sightings,
-    }] : []),
-    ...forecastProjected.map(p => ({
-      month: p.month,
-      projected: p.predictedCount,
-      lower: p.lowerBound,
-      upper: p.upperBound,
-    })),
-  ];
 
   // ── Battery colour helper ───────────────────────────────────────────────────
   const batteryColor = (level) => {
@@ -408,53 +372,33 @@ const ResearcherDashboard = () => {
               ))}
             </div>
 
-            {/* ── Sightings Over Time (with ML forecast) ─────────────────────── */}
+            {/* ── Sightings Over Time ─────────────────────────────────────────── */}
             <div className="border border-bush-line bg-bush-surface p-6">
               <div className="flex items-center mb-4">
                 <TrendingUp className="h-4 w-4 text-teal mr-2" />
                 <h2 className="font-display text-base font-semibold">Sightings Over Time</h2>
-                <span className="ml-2 font-mono text-[11px] text-bone/40">
-                  (last 12 months{forecastProjected.length > 0 ? ' + 3-month ML forecast' : ''})
-                </span>
+                <span className="ml-2 font-mono text-[11px] text-bone/40">(last 12 months)</span>
               </div>
               {monthlyTrends.length === 0 ? (
                 <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-12">No trend data available</p>
               ) : (
-                <>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <LineChart data={combinedTrendData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#3A4433" />
-                      <XAxis dataKey="month" stroke="#A8AE9C" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
-                      <YAxis yAxisId="left" stroke="#A8AE9C" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
-                      <YAxis yAxisId="right" orientation="right" stroke="#A8AE9C" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
-                      <Tooltip contentStyle={{ background: '#242D1F', border: '1px solid #3A4433', color: '#EDE6D3', fontFamily: 'IBM Plex Mono' }} />
-                      <Legend wrapperStyle={{ fontFamily: 'IBM Plex Mono', fontSize: 11 }} />
-                      <Line
-                        yAxisId="left"
-                        type="monotone"
-                        dataKey="sightings"
-                        stroke="#4A7C7C"
-                        strokeWidth={2}
-                        dot={{ r: 4 }}
-                        name="Sightings"
-                      />
-                      <Line
-                        yAxisId="left"
-                        type="monotone"
-                        dataKey="projected"
-                        stroke="#C98A3E"
-                        strokeWidth={2}
-                        strokeDasharray="6 4"
-                        dot={{ r: 3 }}
-                        name="Forecast (ML)"
-                        connectNulls
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                  {forecastMessage && (
-                    <p className="mt-2 font-mono text-[11px] text-bone/40">{forecastMessage}</p>
-                  )}
-                </>
+                <ResponsiveContainer width="100%" height={280}>
+                  <LineChart data={monthlyTrends}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#3A4433" />
+                    <XAxis dataKey="month" stroke="#A8AE9C" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
+                    <YAxis stroke="#A8AE9C" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
+                    <Tooltip contentStyle={{ background: '#242D1F', border: '1px solid #3A4433', color: '#EDE6D3', fontFamily: 'IBM Plex Mono' }} />
+                    <Legend wrapperStyle={{ fontFamily: 'IBM Plex Mono', fontSize: 11 }} />
+                    <Line
+                      type="monotone"
+                      dataKey="sightings"
+                      stroke="#4A7C7C"
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                      name="Sightings"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
               )}
             </div>
           </>
