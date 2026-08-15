@@ -1,2 +1,18 @@
-.env
 scripts/
+
+# dependencies
+node_modules/
+
+# environment
+.env
+.env.local
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log
+
+# OS
+.DS_Store
