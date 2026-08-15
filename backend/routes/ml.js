@@ -215,64 +215,6 @@ router.get('/anomalies', authMiddleware, async (req, res) => {
   }
 });
 
-router.get('/forecast-sightings', authMiddleware, async (req, res) => {
-  try {
-    const monthKeys = getLast12MonthKeys();
-
-    const monthlyRows = await sequelize.query(
-      `
-      SELECT DATE_TRUNC('month', "sightingDate") as month, COUNT(*) as count
-      FROM sightings
-      WHERE "sightingDate" >= NOW() - INTERVAL '12 months'
-      GROUP BY month
-      ORDER BY month ASC
-      `,
-      { type: sequelize.QueryTypes.SELECT }
-    );
-
-    const countsByMonth = monthKeys.reduce((acc, m) => ({ ...acc, [m]: 0 }), {});
-    monthlyRows.forEach((row) => {
-      const monthKey = new Date(row.month).toISOString().slice(0, 7);
-      if (monthKey in countsByMonth) {
-        countsByMonth[monthKey] = parseInt(row.count, 10);
-      }
-    });
-
-    const payload = {
-      monthlyCounts: monthKeys.map((m) => countsByMonth[m]),
-      periods: 3,
-    };
-
-    let mlResponse;
-    try {
-      mlResponse = await axios.post(`${ML_SERVICE_URL}/forecast-trend`, payload, { timeout: 15000 });
-    } catch (mlError) {
-      console.error('Forecast call failed:', mlError.message);
-      return res.status(503).json({
-        success: false,
-        message: 'The ML scoring service is not reachable. Make sure it is running (cd ml-service && python app.py).',
-      });
-    }
-
-    const now = new Date();
-    const projected = (mlResponse.data.data.projected || []).map((p) => {
-      const futureDate = new Date(now.getFullYear(), now.getMonth() + p.monthsAhead, 1);
-      return {
-        ...p,
-        month: futureDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-      };
-    });
-
-    res.status(200).json({
-      success: true,
-      data: { ...mlResponse.data.data, projected },
-    });
-  } catch (error) {
-    console.error('Forecast error:', error);
-    res.status(500).json({ success: false, message: 'Failed to compute forecast.', error: error.message });
-  }
-});
-
 router.get('/species-cooccurrence', authMiddleware, async (req, res) => {
   try {
     const rows = await sequelize.query(
