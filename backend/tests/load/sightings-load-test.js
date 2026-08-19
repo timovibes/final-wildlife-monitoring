@@ -62,7 +62,8 @@ const run = async () => {
   console.log(`Latency avg:         ${result.latency.average} ms`);
   console.log(`Latency p99:         ${result.latency.p99} ms`);
   console.log(`Total requests:      ${result.requests.total}`);
-  console.log(`2xx responses:       ${result[200] || 0}`);
+  console.log(`201 responses:       ${result[201] || 0}`);
+console.log(`Non-2xx responses:   ${result.non2xx || 0}`);
   console.log(`Errors:              ${result.errors}`);
   console.log(`Timeouts:            ${result.timeouts}`);
   console.log('═══════════════════════════════════════\n');
