@@ -68,3 +68,6 @@ docker compose exec backend node tests/load/sightings-load-test.js
 **Finding:** With no code changes between Load Test 2 and Load Test 3, results varied significantly — Test 3 showed far more timeouts and fewer completed requests. This indicates load test results on a single developer machine are affected by external factors (other running processes, Docker Desktop's own resource usage, background system load) and a single run should not be treated as a definitive measurement.
 
 **Next step:** Run the same test 3–5 times back to back and record the range, rather than relying on one run, to get a more honest picture of typical performance.
+
+
+PS: im not doing any more load testing😂😂, not annytime soom atleas!
