@@ -172,7 +172,8 @@ process.on('SIGTERM', () => {
 });
 
 // Start the server
-if (require.main === module)
-  { startServer();
-    module.exports = app;
-  }
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = app;
