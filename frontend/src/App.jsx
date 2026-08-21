@@ -13,6 +13,7 @@ import authService from './services/auth';
 import UserManagement from './components/admin/UserManagement';
 import Species from './components/admin/SpeciesManagement';
 import Reports from './components/admin/Reports';
+import IoTMonitor from './components/admin/IoTMonitor';
 
 /**
  * AppContent handles the layout logic like conditional Navbars
@@ -62,6 +63,12 @@ function AppContent({ isOnline, pendingSync }) {
       <Route path="/admin/species" element={
         <ProtectedRoute requiredRole="admin">
           <Species />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/admin/iot" element={
+        <ProtectedRoute requiredRole="admin">
+          <IoTMonitor />
         </ProtectedRoute>
       } />
 
