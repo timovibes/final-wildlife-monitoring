@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-// Added CheckCircle to imports
-import { Users, Layers, Eye, AlertTriangle, Activity, TrendingUp, CheckCircle, ShieldAlert, UserCog } from 'lucide-react';
+import { Users, Layers, Eye, AlertTriangle, Activity, TrendingUp, CheckCircle, ShieldAlert, UserCog, ChevronDown, Radio } from 'lucide-react';
 import Navbar from '../shared/Navbar';
 import authService from '../../services/auth';
 import api from '../../services/api';
-import IoTDataViewer from './IoTDataViewer';
 import { useNavigate } from 'react-router-dom';
 
 const AdminDashboard = () => {
@@ -14,7 +12,6 @@ const AdminDashboard = () => {
   const [recentIncidents, setRecentIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  // New State for handling button loading status
   const [processingId, setProcessingId] = useState(null);
   const navigate = useNavigate();
 
@@ -23,6 +20,10 @@ const AdminDashboard = () => {
   const [verificationError, setVerificationError] = useState(null);
   const [userAnomalies, setUserAnomalies] = useState([]);
   const [userAnomalyError, setUserAnomalyError] = useState(null);
+
+  // Insights panel starts collapsed — keeps the dashboard focused on
+  // actionable items first; ML panels are opt-in, not forced on every load
+  const [insightsOpen, setInsightsOpen] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -74,15 +75,13 @@ const AdminDashboard = () => {
     }
   };
 
-  // New Feature: Function to verify a sighting
   const handleVerifySighting = async (id) => {
     try {
       setProcessingId(id);
       const response = await api.put(`/sightings/${id}/verify`);
-      
+
       if (response.data.success) {
-        // Update local state to reflect change immediately
-        setRecentSightings(prev => 
+        setRecentSightings(prev =>
           prev.map(s => s.id === id ? { ...s, verified: response.data.data.sighting.verified } : s)
         );
       }
@@ -104,6 +103,11 @@ const AdminDashboard = () => {
     </div>
   );
 
+  const pendingSightingsCount = recentSightings.filter(s => !s.verified).length;
+  const reportedIncidentsCount = recentIncidents.filter(i => i.status === 'Reported').length;
+  const anomalyCount = userAnomalies.filter(u => u.isAnomaly).length;
+  const insightCount = verificationPriority.length + anomalyCount;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-bush text-bone font-body">
@@ -121,7 +125,7 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-bush text-bone font-body">
       {<Navbar user={user} />}
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="font-display text-3xl font-semibold">Admin Dashboard</h1>
@@ -130,146 +134,47 @@ const AdminDashboard = () => {
           </p>
         </div>
 
-        {/* Quick Actions — moved above the fold so Manage Species/Users and
-            Reports are reachable without scrolling (GitHub issue #5) */}
-        <div className="border border-bush-line bg-bush-surface p-6 mb-8">
-          <h2 className="font-display text-base font-semibold mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button 
-              onClick={() => navigate('/admin/users')} 
-              className="p-4 border border-dashed border-bush-line hover:border-ochre hover:bg-bush transition-colors">
-              <Users className="h-6 w-6 text-bone/40 mx-auto mb-2" />
-              <p className="font-mono text-[11px] uppercase tracking-widest text-bone/70">Manage Users</p>
-            </button>
-            <button 
-              onClick={() => navigate('/admin/species')}
-              className="p-4 border border-dashed border-bush-line hover:border-ochre hover:bg-bush transition-colors">
-              <Layers className="h-6 w-6 text-bone/40 mx-auto mb-2" />
-              <p className="font-mono text-[11px] uppercase tracking-widest text-bone/70">Manage Species</p>
-            </button>
-            <button 
-              onClick={() => navigate('/reports')}
-              className="p-4 border border-dashed border-bush-line hover:border-ochre hover:bg-bush transition-colors">
-              <TrendingUp className="h-6 w-6 text-bone/40 mx-auto mb-2" />
-              <p className="font-mono text-[11px] uppercase tracking-widest text-bone/70">View Reports</p>
-            </button>
-          </div>
+        {/* Statistics Grid — moved to the top: orientation before analysis */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <StatCard icon={Layers} title="Total Species" value={stats?.totalSpecies} />
+          <StatCard icon={Eye} title="Total Sightings" value={stats?.totalSightings} />
+          <StatCard icon={AlertTriangle} title="Total Incidents" value={stats?.totalIncidents} />
+          <StatCard icon={Users} title="System Users" value={stats?.totalUsers} />
         </div>
 
-        {/* ═══════════════════════════════════════════════════════════════════════
-            SIGHTING VERIFICATION PRIORITY (ML — weighted composite, explainable)
-
-            Ranks PENDING sightings by how much they deserve scrutiny before you
-            approve them — species rarity, unusual location for that species,
-            unusual count, and the reporter's track record. Unlike the exploratory
-            ML on the researcher dashboard, this gates a real decision, so it's
-            deliberately transparent (every component of the score is shown) —
-            not a black-box model.
-           ═══════════════════════════════════════════════════════════════════════ */}
-        <div className="border border-bush-line bg-bush-surface p-6 mb-8">
-          <div className="flex items-center mb-4">
-            <ShieldAlert className="h-4 w-4 text-ochre mr-2" />
-            <h2 className="font-display text-base font-semibold">Verification Priority</h2>
-            <span className="ml-2 font-mono text-[11px] text-bone/40">ML-ranked, pending sightings needing closer review</span>
-          </div>
-
-          {verificationError ? (
-            <p className="text-center font-mono text-xs uppercase tracking-widest text-rust py-8">{verificationError}</p>
-          ) : verificationPriority.length === 0 ? (
-            <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-8">No pending sightings</p>
-          ) : (
-            <div className="border border-bush-line">
-              {verificationPriority.slice(0, 8).map((v) => (
-                <div key={v.sightingId} className="field-tag">
-                  <div className="flex-1 flex justify-between items-center gap-4">
-                    <div>
-                      <h4 className="font-display font-semibold text-sm">{v.commonName}</h4>
-                      <p className="font-mono text-[11px] text-bone/50 mt-1">
-                        {v.count} individuals &middot; reported by {v.reporterName}
-                        {v.breakdown.distanceFromSpeciesCentroidKm != null &&
-                          ` \u00b7 ${v.breakdown.distanceFromSpeciesCentroidKm}km from typical location`}
-                      </p>
-                    </div>
-                    <span className={`font-mono text-[10px] uppercase tracking-widest px-2 py-1 border flex-shrink-0 ${
-                      v.priorityLevel === 'Critical' ? 'border-rust text-rust' :
-                      v.priorityLevel === 'High' ? 'border-ochre text-ochre' :
-                      v.priorityLevel === 'Medium' ? 'border-ochre-dim text-ochre' :
-                      'border-teal text-teal'
-                    }`}>
-                      {v.priorityLevel} &middot; {v.priorityScore}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+        {/* Quick Actions — slim row, not a boxed section */}
+        <div className="flex flex-wrap gap-3 mb-8">
+          <button
+            onClick={() => navigate('/admin/users')}
+            className="flex items-center gap-2 px-4 py-2.5 border border-dashed border-bush-line hover:border-ochre hover:bg-bush-surface transition-colors font-mono text-[11px] uppercase tracking-widest text-bone/70"
+          >
+            <Users className="h-3.5 w-3.5 text-bone/40" />
+            Manage Users
+          </button>
+          <button
+            onClick={() => navigate('/admin/species')}
+            className="flex items-center gap-2 px-4 py-2.5 border border-dashed border-bush-line hover:border-ochre hover:bg-bush-surface transition-colors font-mono text-[11px] uppercase tracking-widest text-bone/70"
+          >
+            <Layers className="h-3.5 w-3.5 text-bone/40" />
+            Manage Species
+          </button>
+          <button
+            onClick={() => navigate('/reports')}
+            className="flex items-center gap-2 px-4 py-2.5 border border-dashed border-bush-line hover:border-ochre hover:bg-bush-surface transition-colors font-mono text-[11px] uppercase tracking-widest text-bone/70"
+          >
+            <TrendingUp className="h-3.5 w-3.5 text-bone/40" />
+            View Reports
+          </button>
+          <button
+            onClick={() => navigate('/admin/iot')}
+            className="flex items-center gap-2 px-4 py-2.5 border border-dashed border-bush-line hover:border-ochre hover:bg-bush-surface transition-colors font-mono text-[11px] uppercase tracking-widest text-bone/70"
+          >
+            <Radio className="h-3.5 w-3.5 text-bone/40" />
+            IoT Monitor
+          </button>
         </div>
 
-        {/* ═══════════════════════════════════════════════════════════════════════
-            USER ACTIVITY ANOMALY DETECTION (statistical — per-user z-score)
-
-            Each ranger/researcher compared only to their OWN history — a spike
-            or drop in this week's activity relative to what's normal for THEM.
-           ═══════════════════════════════════════════════════════════════════════ */}
-        <div className="border border-bush-line bg-bush-surface p-6 mb-8">
-          <div className="flex items-center mb-4">
-            <UserCog className="h-4 w-4 text-teal mr-2" />
-            <h2 className="font-display text-base font-semibold">User Activity Anomalies</h2>
-            <span className="ml-2 font-mono text-[11px] text-bone/40">Per-user z-score vs their own 8-week baseline</span>
-          </div>
-
-          {userAnomalyError ? (
-            <p className="text-center font-mono text-xs uppercase tracking-widest text-rust py-8">{userAnomalyError}</p>
-          ) : userAnomalies.filter(u => u.isAnomaly).length === 0 ? (
-            <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-8">No unusual activity detected</p>
-          ) : (
-            <div className="border border-bush-line">
-              {userAnomalies.filter(u => u.isAnomaly).map((u) => (
-                <div key={u.userId} className="field-tag">
-                  <div className="flex-1 flex justify-between items-center gap-4">
-                    <div>
-                      <h4 className="font-display font-semibold text-sm">{u.name}</h4>
-                      <p className="font-mono text-[11px] text-bone/50 mt-1">
-                        {u.latestWeekCount} this week vs usual {u.historicalMean} &middot; z-score {u.zScore}
-                      </p>
-                    </div>
-                    <span className={`font-mono text-[10px] uppercase tracking-widest px-2 py-1 border flex-shrink-0 ${
-                      u.direction === 'spike' ? 'border-ochre text-ochre' : 'border-teal text-teal'
-                    }`}>
-                      {u.direction === 'spike' ? 'Spike' : 'Drop'}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Statistics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatCard
-            icon={Layers}
-            title="Total Species"
-            value={stats?.totalSpecies}
-          />
-          <StatCard
-            icon={Eye}
-            title="Total Sightings"
-            value={stats?.totalSightings}
-          />
-          <StatCard
-            icon={AlertTriangle}
-            title="Total Incidents"
-            value={stats?.totalIncidents}
-          />
-          <StatCard
-            icon={Users}
-            title="System Users"
-            value={stats?.totalUsers}
-          />
-        </div>
-
-        {/* Tabs */}
+        {/* Tabs — now the primary content, with pending counts surfaced */}
         <div className="border border-bush-line bg-bush-surface mb-6">
           <div className="border-b border-bush-line">
             <nav className="-mb-px flex space-x-8 px-6">
@@ -291,7 +196,7 @@ const AdminDashboard = () => {
                     : 'border-transparent text-bone/40 hover:text-bone/70'
                 }`}
               >
-                Recent Sightings
+                Sightings{pendingSightingsCount > 0 ? ` (${pendingSightingsCount} pending)` : ''}
               </button>
               <button
                 onClick={() => setActiveTab('incidents')}
@@ -301,51 +206,31 @@ const AdminDashboard = () => {
                     : 'border-transparent text-bone/40 hover:text-bone/70'
                 }`}
               >
-                Recent Incidents
+                Incidents{reportedIncidentsCount > 0 ? ` (${reportedIncidentsCount} reported)` : ''}
               </button>
             </nav>
           </div>
 
           <div className="p-6">
             {activeTab === 'overview' && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="border border-bush-line p-5">
-                    <h3 className="font-mono text-[10px] uppercase tracking-widest text-bone/50 mb-2">
-                      Endangered Species
-                    </h3>
-                    <p className="font-display text-3xl font-semibold text-rust">
-                      {stats?.endangeredSpecies || 0}
-                    </p>
-                    <p className="text-xs text-bone/50 mt-2">
-                      Requiring special attention
-                    </p>
-                  </div>
-                  <div className="border border-bush-line p-5">
-                    <h3 className="font-mono text-[10px] uppercase tracking-widest text-bone/50 mb-2">
-                      Active IoT Sensors
-                    </h3>
-                    <p className="font-display text-3xl font-semibold text-teal">
-                      {stats?.activeSensors || 0}
-                    </p>
-                    <p className="text-xs text-bone/50 mt-2">
-                      Transmitting real-time data
-                    </p>
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="border border-bush-line p-5">
+                  <h3 className="font-mono text-[10px] uppercase tracking-widest text-bone/50 mb-2">
+                    Endangered Species
+                  </h3>
+                  <p className="font-display text-3xl font-semibold text-rust">
+                    {stats?.endangeredSpecies || 0}
+                  </p>
+                  <p className="text-xs text-bone/50 mt-2">Requiring special attention</p>
                 </div>
-                
-                <div className="border border-ochre-dim bg-bush p-4">
-                  <div className="flex gap-3">
-                    <AlertTriangle className="h-4 w-4 text-ochre flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h3 className="font-mono text-[10px] uppercase tracking-widest text-ochre">
-                        Admin Privileges Active
-                      </h3>
-                      <p className="mt-2 text-sm text-bone/70">
-                        You have full access to manage users, species, verify sightings, and resolve incidents.
-                      </p>
-                    </div>
-                  </div>
+                <div className="border border-bush-line p-5">
+                  <h3 className="font-mono text-[10px] uppercase tracking-widest text-bone/50 mb-2">
+                    Active IoT Sensors
+                  </h3>
+                  <p className="font-display text-3xl font-semibold text-teal">
+                    {stats?.activeSensors || 0}
+                  </p>
+                  <p className="text-xs text-bone/50 mt-2">Transmitting real-time data</p>
                 </div>
               </div>
             )}
@@ -388,7 +273,6 @@ const AdminDashboard = () => {
                             {sighting.verified ? 'Verified' : 'Pending'}
                           </span>
 
-                          {/* New Feature: Verify Button */}
                           {!sighting.verified && (
                             <button
                               onClick={() => handleVerifySighting(sighting.id)}
@@ -450,7 +334,116 @@ const AdminDashboard = () => {
             )}
           </div>
         </div>
-        <IoTDataViewer />
+
+        {/* Insights — collapsed by default. Both ML panels live here now,
+            behind one toggle, so they're available but not forced on every load. */}
+        <div className="border border-bush-line bg-bush-surface">
+          <button
+            onClick={() => setInsightsOpen(prev => !prev)}
+            className="w-full flex items-center justify-between p-6"
+          >
+            <div className="flex items-center">
+              <ShieldAlert className="h-4 w-4 text-ochre mr-2" />
+              <h2 className="font-display text-base font-semibold">Insights</h2>
+              {insightCount > 0 && (
+                <span className="ml-2 font-mono text-[11px] px-2 py-0.5 border border-ochre-dim text-ochre">
+                  {insightCount}
+                </span>
+              )}
+            </div>
+            <ChevronDown className={`h-4 w-4 text-bone/40 transition-transform ${insightsOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {insightsOpen && (
+            <div className="px-6 pb-6 space-y-8">
+              {/* Verification Priority */}
+              <div>
+                <div className="flex items-center mb-4">
+                  <ShieldAlert className="h-4 w-4 text-ochre mr-2" />
+                  <h3 className="font-display text-sm font-semibold">Verification Priority</h3>
+                  <span className="ml-2 font-mono text-[11px] text-bone/40">ML-ranked, pending sightings needing closer review</span>
+                </div>
+
+                {verificationError ? (
+                  <p className="text-center font-mono text-xs uppercase tracking-widest text-rust py-8">{verificationError}</p>
+                ) : verificationPriority.length === 0 ? (
+                  <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-8">No pending sightings</p>
+                ) : (
+                  <div className="border border-bush-line">
+                    {verificationPriority.slice(0, 8).map((v) => (
+                      <div key={v.sightingId} className="field-tag">
+                        <div className="flex-1 flex justify-between items-center gap-4">
+                          <div>
+                            <h4 className="font-display font-semibold text-sm">{v.commonName}</h4>
+                            <p className="font-mono text-[11px] text-bone/50 mt-1">
+                              {v.count} individuals &middot; reported by {v.reporterName}
+                              {v.breakdown.distanceFromSpeciesCentroidKm != null &&
+                                ` \u00b7 ${v.breakdown.distanceFromSpeciesCentroidKm}km from typical location`}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3 flex-shrink-0">
+                            <span className={`font-mono text-[10px] uppercase tracking-widest px-2 py-1 border ${
+                              v.priorityLevel === 'Critical' ? 'border-rust text-rust' :
+                              v.priorityLevel === 'High' ? 'border-ochre text-ochre' :
+                              v.priorityLevel === 'Medium' ? 'border-ochre-dim text-ochre' :
+                              'border-teal text-teal'
+                            }`}>
+                              {v.priorityLevel} &middot; {v.priorityScore}
+                            </span>
+                            {/* Act directly from here instead of hunting through the Sightings tab */}
+                            <button
+                              onClick={() => handleVerifySighting(v.sightingId)}
+                              disabled={processingId === v.sightingId}
+                              className="flex items-center gap-1.5 border border-teal text-teal font-mono text-[10px] uppercase tracking-widest px-3 py-1.5 hover:bg-teal hover:text-bush transition-colors disabled:opacity-50"
+                            >
+                              <CheckCircle className="h-3 w-3" />
+                              {processingId === v.sightingId ? '...' : 'Verify'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* User Activity Anomalies */}
+              <div>
+                <div className="flex items-center mb-4">
+                  <UserCog className="h-4 w-4 text-teal mr-2" />
+                  <h3 className="font-display text-sm font-semibold">User Activity Anomalies</h3>
+                  <span className="ml-2 font-mono text-[11px] text-bone/40">Per-user z-score vs their own 8-week baseline</span>
+                </div>
+
+                {userAnomalyError ? (
+                  <p className="text-center font-mono text-xs uppercase tracking-widest text-rust py-8">{userAnomalyError}</p>
+                ) : anomalyCount === 0 ? (
+                  <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-8">No unusual activity detected</p>
+                ) : (
+                  <div className="border border-bush-line">
+                    {userAnomalies.filter(u => u.isAnomaly).map((u) => (
+                      <div key={u.userId} className="field-tag">
+                        <div className="flex-1 flex justify-between items-center gap-4">
+                          <div>
+                            <h4 className="font-display font-semibold text-sm">{u.name}</h4>
+                            <p className="font-mono text-[11px] text-bone/50 mt-1">
+                              {u.latestWeekCount} this week vs usual {u.historicalMean} &middot; z-score {u.zScore}
+                            </p>
+                          </div>
+                          <span className={`font-mono text-[10px] uppercase tracking-widest px-2 py-1 border flex-shrink-0 ${
+                            u.direction === 'spike' ? 'border-ochre text-ochre' : 'border-teal text-teal'
+                          }`}>
+                            {u.direction === 'spike' ? 'Spike' : 'Drop'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
