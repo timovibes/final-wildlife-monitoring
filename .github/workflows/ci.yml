@@ -77,6 +77,9 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
+      - name: Use matching npm version
+        run: npm install -g npm@11.12.1
+
       - name: Install dependencies
         run: npm ci
 
