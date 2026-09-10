@@ -30,7 +30,7 @@ function AppContent({ isOnline, pendingSync }) {
   const isDashboardPage = dashboardPaths.some(path => location.pathname.startsWith(path));
 
   return (
-    <div className="min-h-screen bg-bush text-bone font-body">
+    <div className="min-h-screen bg-ops text-steel font-body">
       <OfflineIndicator isOnline={isOnline} isPending={pendingSync} />
       
       {/* Show Navbar only if logged in and not on specific excluded pages */}
