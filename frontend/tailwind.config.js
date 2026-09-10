@@ -7,31 +7,33 @@ export default {
   theme: {
     extend: {
       colors: {
-        bush: {
-          DEFAULT: '#1B2318', // base bg
-          surface: '#242D1F', // card/surface
-          line: '#3A4433',    // borders/dividers
+        ops: {
+          DEFAULT: '#0B0D10',   // base bg, near-black
+          surface: '#14171B',   // card/surface
+          raised: '#1C2126',    // elevated panel
+          line: '#2A3036',      // borders/dividers
         },
-        bone: '#EDE6D3',      // primary text
-        ochre: {
-          DEFAULT: '#C98A3E', // primary accent
-          dim: '#8C6229',
+        steel: '#C7CDD4',        // primary text
+        cyan: {
+          DEFAULT: '#3FB8C4',    // primary accent
+          dim: '#245F66',
         },
-        teal: {
-          DEFAULT: '#4A7C7C', // secondary accent / info / online status
+        amber: {
+          DEFAULT: '#E0A94C',    // secondary accent / pending
         },
-        rust: {
-          DEFAULT: '#B5432F', // critical alerts only
-          dim: '#4A2620',
+        signal: {
+          DEFAULT: '#E4463F',    // critical alerts only
+          dim: '#4A1D1B',
         },
+        online: '#3FCF8E',        // status-online
       },
       fontFamily: {
         display: ['"Space Grotesk"', 'sans-serif'],
-        body: ['"IBM Plex Sans"', 'sans-serif'],
+        body: ['"Space Grotesk"', 'sans-serif'],
         mono: ['"IBM Plex Mono"', 'monospace'],
       },
       borderRadius: {
-        DEFAULT: '2px', // this system does not use rounded-everything
+        DEFAULT: '2px',
       },
     },
   },
