@@ -1,4 +1,5 @@
 const express = require('express');
+const { Op } = require('sequelize');
 const { Incident, Species, User } = require('../models');
 const authMiddleware = require('../middleware/auth');
 const roleCheck = require('../middleware/roleCheck');
@@ -19,7 +20,7 @@ const router = express.Router();
 // Get all incidents (All authenticated users)
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const { incidentType, severity, status, reportedById, speciesId } = req.query;
+    const { incidentType, severity, status, reportedById, speciesId, startDate, endDate } = req.query;
     
     const where = {};
     if (incidentType) where.incidentType = incidentType;
@@ -27,6 +28,11 @@ router.get('/', authMiddleware, async (req, res) => {
     if (status) where.status = status;
     if (reportedById) where.reportedById = reportedById;
     if (speciesId) where.speciesId = speciesId;
+    if (startDate || endDate) {
+      where.incidentDate = {};
+      if (startDate) where.incidentDate[Op.gte] = new Date(startDate);
+      if (endDate) where.incidentDate[Op.lte] = new Date(endDate);
+    }
 
     const incidents = await Incident.findAll({
       where,

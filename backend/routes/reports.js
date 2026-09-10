@@ -15,6 +15,9 @@ const router = express.Router();
  * GET /api/reports/iot-activity - Get IoT sensor activity
  */
 
+// Statuses considered "endangered" for reporting purposes (IUCN Red List)
+const ENDANGERED_STATUSES = ['EN', 'CR', 'EW'];
+
 // Dashboard summary (All authenticated users)
 router.get('/dashboard', authMiddleware, async (req, res) => {
   try {
@@ -31,7 +34,12 @@ router.get('/dashboard', authMiddleware, async (req, res) => {
       Sighting.count(),
       Incident.count(),
       User.count(),
-      Species.count({ where: { isEndangered: true } }),
+      // Count directly off conservationStatus rather than the isEndangered
+      // flag — that flag only updates via the model's beforeSave hook, which
+      // does NOT run on bulkCreate (e.g. seeders), so it can silently drift
+      // out of sync with the actual status. conservationStatus is the source
+      // of truth; this is now derived from it every time instead of cached.
+      Species.count({ where: { conservationStatus: ENDANGERED_STATUSES } }),
       sequelize.query(
         'SELECT COUNT(DISTINCT "sensorId") as count FROM iot_data WHERE "sensorId" IS NOT NULL',
         { type: sequelize.QueryTypes.SELECT }
@@ -261,7 +269,9 @@ router.get('/sighting-trends', authMiddleware, async (req, res) => {
 router.get('/endangered-species', authMiddleware, async (req, res) => {
   try {
     const endangeredSpecies = await Species.findAll({
-      where: { isEndangered: true },
+      // Same fix as above — derive from conservationStatus, not the
+      // isEndangered flag, which can be stale for bulk-inserted records.
+      where: { conservationStatus: ENDANGERED_STATUSES },
       include: [
         {
           model: Sighting,
