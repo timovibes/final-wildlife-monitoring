@@ -155,10 +155,10 @@ const IoTDataViewer = () => {
   const latestPerSensor = deduplicateBySensor(iotData);
 
   return (
-    <div className="border border-bush-line bg-bush-surface p-6">
+    <div className="border border-ops-line bg-ops-surface p-6">
       <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
         <h2 className="font-display text-lg font-semibold flex items-center">
-          <Activity className="h-4 w-4 mr-2 text-ochre" />
+          <Activity className="h-4 w-4 mr-2 text-cyan" />
           Live IoT Sensor Data
         </h2>
 
@@ -169,8 +169,8 @@ const IoTDataViewer = () => {
             disabled={simLoading}
             className={`flex items-center px-4 py-2 font-mono text-[11px] uppercase tracking-widest font-semibold transition-colors disabled:opacity-40 ${
               simRunning
-                ? 'border border-rust text-rust hover:bg-rust hover:text-bush'
-                : 'bg-teal text-bush hover:bg-[#5c9494]'
+                ? 'border border-signal text-signal hover:bg-signal hover:text-ops'
+                : 'bg-amber text-ops hover:bg-[#5c9494]'
             }`}
           >
             {simRunning ? (
@@ -187,11 +187,11 @@ const IoTDataViewer = () => {
           </button>
 
           {/* View toggle */}
-          <div className="flex border border-bush-line">
+          <div className="flex border border-ops-line">
             <button
               onClick={() => setViewMode('table')}
               className={`flex items-center px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest transition-colors ${
-                viewMode === 'table' ? 'bg-ochre text-bush' : 'text-bone/50 hover:text-bone'
+                viewMode === 'table' ? 'bg-cyan text-ops' : 'text-steel/50 hover:text-steel'
               }`}
             >
               <Table className="h-3.5 w-3.5 mr-1.5" />
@@ -199,8 +199,8 @@ const IoTDataViewer = () => {
             </button>
             <button
               onClick={() => setViewMode('map')}
-              className={`flex items-center px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest transition-colors border-l border-bush-line ${
-                viewMode === 'map' ? 'bg-ochre text-bush' : 'text-bone/50 hover:text-bone'
+              className={`flex items-center px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest transition-colors border-l border-ops-line ${
+                viewMode === 'map' ? 'bg-cyan text-ops' : 'text-steel/50 hover:text-steel'
               }`}
             >
               <MapIcon className="h-3.5 w-3.5 mr-1.5" />
@@ -211,7 +211,7 @@ const IoTDataViewer = () => {
           <button
             onClick={fetchData}
             disabled={loading}
-            className="flex items-center px-4 py-2 border border-ochre text-ochre font-mono text-[11px] uppercase tracking-widest hover:bg-ochre hover:text-bush disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ochre transition-colors"
+            className="flex items-center px-4 py-2 border border-cyan text-cyan font-mono text-[11px] uppercase tracking-widest hover:bg-cyan hover:text-ops disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-cyan transition-colors"
           >
             <RefreshCw className={`h-3.5 w-3.5 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
@@ -221,7 +221,7 @@ const IoTDataViewer = () => {
             onClick={handleClearView}
             disabled={iotData.length === 0}
             title="Clears this view only — stored data is untouched"
-            className="flex items-center px-4 py-2 border border-bush-line text-bone/50 font-mono text-[11px] uppercase tracking-widest hover:text-bone hover:border-bone/40 disabled:opacity-30 disabled:hover:text-bone/50 disabled:hover:border-bush-line transition-colors"
+            className="flex items-center px-4 py-2 border border-ops-line text-steel/50 font-mono text-[11px] uppercase tracking-widest hover:text-steel hover:border-steel/40 disabled:opacity-30 disabled:hover:text-steel/50 disabled:hover:border-ops-line transition-colors"
           >
             <Eraser className="h-3.5 w-3.5 mr-2" />
             Clear View
@@ -230,30 +230,30 @@ const IoTDataViewer = () => {
       </div>
 
       {/* Simulation status line */}
-      <div className="mb-4 flex items-center gap-2 font-mono text-[11px] text-bone/40">
-        <span className={`w-2 h-2 rounded-full ${simRunning ? 'bg-teal' : 'bg-bush-line'}`}></span>
+      <div className="mb-4 flex items-center gap-2 font-mono text-[11px] text-steel/40">
+        <span className={`w-2 h-2 rounded-full ${simRunning ? 'bg-amber' : 'bg-ops-line'}`}></span>
         {simRunning ? 'Simulation running — sensors reporting every 3s' : 'Simulation stopped'}
       </div>
 
       {/* TABLE VIEW */}
       {viewMode === 'table' && (
-        <div className="overflow-x-auto border border-bush-line">
-          <table className="min-w-full divide-y divide-bush-line">
-            <thead className="bg-bush">
+        <div className="overflow-x-auto border border-ops-line">
+          <table className="min-w-full divide-y divide-ops-line">
+            <thead className="bg-ops">
               <tr>
-                <th className="px-4 py-3 text-left font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">Sensor ID</th>
-                <th className="px-4 py-3 text-left font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">Type</th>
-                <th className="px-4 py-3 text-left font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">Location</th>
-                <th className="px-4 py-3 text-left font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">Temp</th>
-                <th className="px-4 py-3 text-left font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">Battery</th>
-                <th className="px-4 py-3 text-left font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">Motion</th>
-                <th className="px-4 py-3 text-left font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">Timestamp</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] font-medium text-steel/50 uppercase tracking-widest">Sensor ID</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] font-medium text-steel/50 uppercase tracking-widest">Type</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] font-medium text-steel/50 uppercase tracking-widest">Location</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] font-medium text-steel/50 uppercase tracking-widest">Temp</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] font-medium text-steel/50 uppercase tracking-widest">Battery</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] font-medium text-steel/50 uppercase tracking-widest">Motion</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] font-medium text-steel/50 uppercase tracking-widest">Timestamp</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-bush-line">
+            <tbody className="divide-y divide-ops-line">
               {/* Table still shows all recent readings for history */}
               {iotData.map((data) => (
-                <tr key={data.id} className="hover:bg-bush transition-colors">
+                <tr key={data.id} className="hover:bg-ops transition-colors">
                   <td className="px-4 py-3 font-mono text-xs font-medium">{data.sensorId}</td>
                   <td className="px-4 py-3 text-sm">
                     <span
@@ -266,19 +266,19 @@ const IoTDataViewer = () => {
                       {data.deviceType}
                     </span>
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs text-bone/60">
+                  <td className="px-4 py-3 font-mono text-xs text-steel/60">
                     {data.latitude  != null ? Number(data.latitude).toFixed(5)  : '—'},{' '}
                     {data.longitude != null ? Number(data.longitude).toFixed(5) : '—'}
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs text-bone/60">
+                  <td className="px-4 py-3 font-mono text-xs text-steel/60">
                     {data.temperature ? `${data.temperature}°C` : '—'}
                   </td>
                   <td className="px-4 py-3 text-sm">
                     {data.batteryLevel != null ? (
                       <span className={`font-mono text-[10px] uppercase tracking-widest px-2 py-1 border ${
-                        data.batteryLevel > 70 ? 'border-teal text-teal' :
-                        data.batteryLevel > 30 ? 'border-ochre text-ochre' :
-                                                  'border-rust text-rust'
+                        data.batteryLevel > 70 ? 'border-amber text-amber' :
+                        data.batteryLevel > 30 ? 'border-cyan text-cyan' :
+                                                  'border-signal text-signal'
                       }`}>
                         {data.batteryLevel}%
                       </span>
@@ -287,13 +287,13 @@ const IoTDataViewer = () => {
                   <td className="px-4 py-3 text-sm">
                     {data.motion !== null && data.motion !== undefined ? (
                       <span className={`font-mono text-[10px] uppercase tracking-widest px-2 py-1 border ${
-                        data.motion ? 'border-teal text-teal' : 'border-bush-line text-bone/40'
+                        data.motion ? 'border-amber text-amber' : 'border-ops-line text-steel/40'
                       }`}>
                         {data.motion ? 'Active' : 'Still'}
                       </span>
                     ) : '—'}
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs text-bone/50">
+                  <td className="px-4 py-3 font-mono text-xs text-steel/50">
                     {new Date(data.timestamp).toLocaleString()}
                   </td>
                 </tr>
@@ -303,8 +303,8 @@ const IoTDataViewer = () => {
 
           {iotData.length === 0 && !loading && (
             <div className="text-center py-12">
-              <Activity className="h-10 w-10 text-bone/20 mx-auto mb-4" />
-              <p className="font-mono text-xs uppercase tracking-widest text-bone/40">
+              <Activity className="h-10 w-10 text-steel/20 mx-auto mb-4" />
+              <p className="font-mono text-xs uppercase tracking-widest text-steel/40">
                 No IoT data available. {simRunning ? 'Waiting for first reading…' : 'Start the sensor simulation.'}
               </p>
             </div>
@@ -316,7 +316,7 @@ const IoTDataViewer = () => {
       {viewMode === 'map' && (
         <>
           {/* Legend */}
-          <div className="flex flex-wrap gap-4 mb-3 font-mono text-[11px] text-bone/60">
+          <div className="flex flex-wrap gap-4 mb-3 font-mono text-[11px] text-steel/60">
             {Object.entries(DEVICE_COLORS).map(([type, color]) => (
               <span key={type} className="flex items-center gap-1.5">
                 <span className="inline-block w-2.5 h-2.5" style={{ background: color }} />
@@ -325,7 +325,7 @@ const IoTDataViewer = () => {
             ))}
           </div>
 
-          <div className="h-[500px] w-full overflow-hidden border border-bush-line">
+          <div className="h-[500px] w-full overflow-hidden border border-ops-line">
             <MapContainer
               center={NNP_CENTER}
               zoom={NNP_ZOOM}
@@ -347,14 +347,14 @@ const IoTDataViewer = () => {
                   <Marker key={data.sensorId} position={[lat, lng]} icon={icon}>
                     <Popup>
                       <div className="font-mono text-xs space-y-1 min-w-[160px]">
-                        <p className="font-bold text-bush">{data.sensorId}</p>
-                        <p className="text-bush/60">{data.deviceType}</p>
+                        <p className="font-bold text-ops">{data.sensorId}</p>
+                        <p className="text-ops/60">{data.deviceType}</p>
                         <hr />
                         {data.temperature  != null && <p>TEMP {data.temperature}°C</p>}
                         {data.batteryLevel != null && <p>BATT {data.batteryLevel}%</p>}
                         {data.speed        != null && <p>SPD {Number(data.speed).toFixed(1)} km/h</p>}
                         {data.motion       != null && <p>MOTION {data.motion ? 'Active' : 'Still'}</p>}
-                        <p className="text-bush/40 text-[10px] pt-1">
+                        <p className="text-ops/40 text-[10px] pt-1">
                           {new Date(data.timestamp).toLocaleString()}
                         </p>
                       </div>
@@ -365,14 +365,14 @@ const IoTDataViewer = () => {
             </MapContainer>
           </div>
 
-          <p className="mt-2 font-mono text-[11px] text-bone/40">
+          <p className="mt-2 font-mono text-[11px] text-steel/40">
             Showing latest position for {latestPerSensor.length} sensor{latestPerSensor.length !== 1 ? 's' : ''} &middot; Auto-refreshes every 15 s
           </p>
         </>
       )}
 
       {viewMode === 'table' && (
-        <div className="mt-4 font-mono text-[11px] text-bone/40">
+        <div className="mt-4 font-mono text-[11px] text-steel/40">
           Showing most recent {iotData.length} readings &middot; Auto-refreshes every 15 seconds
         </div>
       )}
