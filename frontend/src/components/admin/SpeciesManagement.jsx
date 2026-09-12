@@ -5,8 +5,8 @@ import authService from '../../services/auth';
 import { Plus, Edit2, Trash2, ShieldAlert, X } from 'lucide-react';
 
 const inputClass =
-  'w-full bg-bush border border-bush-line text-bone text-sm p-2 focus:outline-none focus:border-ochre';
-const labelClass = 'block font-mono text-[10px] uppercase tracking-widest text-bone/50 mb-1';
+  'w-full bg-ops border border-ops-line text-steel text-sm p-2 focus:outline-none focus:border-cyan';
+const labelClass = 'block font-mono text-[10px] uppercase tracking-widest text-steel/50 mb-1';
 
 const SpeciesManagement = () => {
   const [species, setSpecies] = useState([]);
@@ -86,50 +86,50 @@ const handleSubmit = async (e) => {
   };
 
   return (
-    <div className="min-h-screen bg-bush text-bone font-body">
+    <div className="min-h-screen bg-ops text-steel font-body">
       <Navbar user={currentUser} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="font-display text-2xl font-semibold">Species Management</h1>
           <button onClick={() => {resetForm(); setIsModalOpen(true); }}
-          className="flex items-center bg-ochre text-bush px-4 py-2 font-mono text-xs uppercase tracking-widest font-semibold hover:bg-[#dda054] transition-colors">
+          className="flex items-center bg-cyan text-ops px-4 py-2 font-mono text-xs uppercase tracking-widest font-semibold hover:bg-[#59c9d4] transition-colors">
             <Plus className="h-4 w-4 mr-2" />
             Add New Species
           </button>
         </div>
 
-        <div className="border border-bush-line bg-bush-surface overflow-hidden">
-          <table className="min-w-full divide-y divide-bush-line">
-            <thead className="bg-bush">
+        <div className="border border-ops-line bg-ops-surface overflow-hidden">
+          <table className="min-w-full divide-y divide-ops-line">
+            <thead className="bg-ops">
               <tr>
-                <th className="px-6 py-3 text-left font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">Common Name</th>
-                <th className="px-6 py-3 text-left font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">Scientific Name</th>
-                <th className="px-6 py-3 text-left font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">Status</th>
-                <th className="px-6 py-3 text-right font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">Actions</th>
+                <th className="px-6 py-3 text-left font-mono text-[10px] font-medium text-steel/50 uppercase tracking-widest">Common Name</th>
+                <th className="px-6 py-3 text-left font-mono text-[10px] font-medium text-steel/50 uppercase tracking-widest">Scientific Name</th>
+                <th className="px-6 py-3 text-left font-mono text-[10px] font-medium text-steel/50 uppercase tracking-widest">Status</th>
+                <th className="px-6 py-3 text-right font-mono text-[10px] font-medium text-steel/50 uppercase tracking-widest">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-bush-line">
+            <tbody className="divide-y divide-ops-line">
               {species.map((item) => (
-                <tr key={item.id} className="hover:bg-bush transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-bone">{item.commonName}</td>
-                  <td className="px-6 py-4 whitespace-nowrap font-mono text-xs italic text-bone/50">{item.scientificName}</td>
+                <tr key={item.id} className="hover:bg-ops transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-steel">{item.commonName}</td>
+                  <td className="px-6 py-4 whitespace-nowrap font-mono text-xs italic text-steel/50">{item.scientificName}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 font-mono text-[10px] uppercase tracking-widest border ${
                       ['EN', 'CR', 'EW'].includes(item.conservationStatus)
-                        ? 'border-rust text-rust'
-                        : 'border-teal text-teal'
+                        ? 'border-signal text-signal'
+                        : 'border-amber text-amber'
                     }`}>
                       {item.conservationStatus}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button onClick={() => handleEditClick(item)}
-                    className="text-teal hover:text-bone mr-4">
+                    className="text-amber hover:text-steel mr-4">
                       <Edit2 className="h-4 w-4" />
                     </button>
                     <button 
                         onClick={() => handleDeleteSpecies(item.id)}
-                        className="text-rust hover:text-bone"
+                        className="text-signal hover:text-steel"
                         >
                         <Trash2 className="h-4 w-4" />
                     </button>
@@ -144,12 +144,12 @@ const handleSubmit = async (e) => {
       {/* --- MODAL OVERLAY --- */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-bush-surface border border-bush-line max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-ops-surface border border-ops-line max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="font-display text-xl font-bold text-bone">
+              <h2 className="font-display text-xl font-bold text-steel">
                 {editingId ? 'Edit Species Details' : 'Register New Species'}
               </h2>
-              <button onClick={resetForm} className="text-bone/40 hover:text-bone">
+              <button onClick={resetForm} className="text-steel/40 hover:text-steel">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -202,16 +202,16 @@ const handleSubmit = async (e) => {
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-bush-line">
+              <div className="flex justify-end gap-3 pt-4 border-t border-ops-line">
                 <button 
                   type="button" onClick={resetForm}
-                  className="px-4 py-2 font-mono text-xs uppercase tracking-widest text-bone/50 hover:text-bone"
+                  className="px-4 py-2 font-mono text-xs uppercase tracking-widest text-steel/50 hover:text-steel"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit" 
-                  className="px-6 py-2 bg-ochre text-bush font-mono text-xs uppercase tracking-widest font-semibold hover:bg-[#dda054] transition-colors"
+                  className="px-6 py-2 bg-cyan text-ops font-mono text-xs uppercase tracking-widest font-semibold hover:bg-[#59c9d4] transition-colors"
                 >
                   {editingId ? 'Update Species' : 'Save Species'}
                 </button>
