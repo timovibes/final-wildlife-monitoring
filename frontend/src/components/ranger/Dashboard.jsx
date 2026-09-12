@@ -5,8 +5,8 @@ import authService from '../../services/auth';
 import api from '../../services/api';
 
 const inputClass =
-  'mt-1 block w-full px-3 py-2 bg-bush border border-bush-line text-bone text-sm focus:outline-none focus:border-ochre placeholder:text-bone/30';
-const labelClass = 'block font-mono text-[10px] uppercase tracking-widest text-bone/50';
+  'mt-1 block w-full px-3 py-2 bg-ops border border-ops-line text-steel text-sm focus:outline-none focus:border-cyan placeholder:text-steel/30';
+const labelClass = 'block font-mono text-[10px] uppercase tracking-widest text-steel/50';
 
 // Minimal "reveal" scroll — only moves the page if the bottom of the form
 // (e.g. the submit button) is actually cut off below the viewport, and only
@@ -163,12 +163,12 @@ const RangerDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-bush text-bone font-body">
+      <div className="min-h-screen bg-ops text-steel font-body">
         {<Navbar user={user} />}
         <div className="flex items-center justify-center h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-10 w-10 border-2 border-bush-line border-t-ochre mx-auto"></div>
-            <p className="mt-4 font-mono text-xs uppercase tracking-widest text-bone/50">Loading...</p>
+            <div className="animate-spin rounded-full h-10 w-10 border-2 border-ops-line border-t-cyan mx-auto"></div>
+            <p className="mt-4 font-mono text-xs uppercase tracking-widest text-steel/50">Loading...</p>
           </div>
         </div>
       </div>
@@ -176,39 +176,39 @@ const RangerDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-bush text-bone font-body">
+    <div className="min-h-screen bg-ops text-steel font-body">
       {<Navbar user={user} />}
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="font-display text-3xl font-semibold">Ranger Dashboard</h1>
-          <p className="mt-2 font-mono text-xs uppercase tracking-widest text-bone/50">
+          <p className="mt-2 font-mono text-xs uppercase tracking-widest text-steel/50">
             Record wildlife sightings and report incidents
           </p>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="border border-bush-line bg-bush-surface p-5">
+          <div className="border border-ops-line bg-ops-surface p-5">
             <div className="flex items-center justify-between mb-3">
-              <p className="font-mono text-[10px] uppercase tracking-widest text-bone/50">My Sightings</p>
-              <Eye className="h-4 w-4 text-ochre" />
+              <p className="font-mono text-[10px] uppercase tracking-widest text-steel/50">My Sightings</p>
+              <Eye className="h-4 w-4 text-cyan" />
             </div>
             <p className="font-display text-3xl font-semibold">{mySightings.length}</p>
           </div>
 
-          <div className="border border-bush-line bg-bush-surface p-5">
+          <div className="border border-ops-line bg-ops-surface p-5">
             <div className="flex items-center justify-between mb-3">
-              <p className="font-mono text-[10px] uppercase tracking-widest text-bone/50">My Incidents</p>
-              <AlertTriangle className="h-4 w-4 text-rust" />
+              <p className="font-mono text-[10px] uppercase tracking-widest text-steel/50">My Incidents</p>
+              <AlertTriangle className="h-4 w-4 text-signal" />
             </div>
             <p className="font-display text-3xl font-semibold">{myIncidents.length}</p>
           </div>
 
-          <div className="border border-bush-line bg-bush-surface p-5">
+          <div className="border border-ops-line bg-ops-surface p-5">
             <div className="flex items-center justify-between mb-3">
-              <p className="font-mono text-[10px] uppercase tracking-widest text-bone/50">Species Tracked</p>
-              <List className="h-4 w-4 text-teal" />
+              <p className="font-mono text-[10px] uppercase tracking-widest text-steel/50">Species Tracked</p>
+              <List className="h-4 w-4 text-amber" />
             </div>
             <p className="font-display text-3xl font-semibold">{species.length}</p>
           </div>
@@ -218,7 +218,7 @@ const RangerDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           <button
             onClick={handleToggleSightingForm}
-            className="bg-ochre text-bush p-6 hover:bg-[#dda054] transition-colors flex items-center justify-center gap-3"
+            className="bg-cyan text-ops p-6 hover:bg-[#59c9d4] transition-colors flex items-center justify-center gap-3"
           >
             <Plus className="h-5 w-5" />
             <span className="font-mono text-sm uppercase tracking-widest font-semibold">Record Sighting</span>
@@ -226,7 +226,7 @@ const RangerDashboard = () => {
 
           <button
             onClick={handleToggleIncidentForm}
-            className="border border-rust text-rust p-6 hover:bg-rust hover:text-bush transition-colors flex items-center justify-center gap-3"
+            className="border border-signal text-signal p-6 hover:bg-signal hover:text-ops transition-colors flex items-center justify-center gap-3"
           >
             <AlertTriangle className="h-5 w-5" />
             <span className="font-mono text-sm uppercase tracking-widest font-semibold">Report Incident</span>
@@ -237,8 +237,7 @@ const RangerDashboard = () => {
         <div ref={formSectionRef}>
 
         {/* Sighting Form */}
-        {showSightingForm && (
-          <div className="border border-bush-line bg-bush-surface p-6 mb-8">
+        {showSightingForm && (          <div className="border border-ops-line bg-ops-surface p-6 mb-8">
             <h2 className="font-display text-lg font-semibold mb-4">Record Wildlife Sighting</h2>
             <form onSubmit={handleSightingSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -321,14 +320,14 @@ const RangerDashboard = () => {
               <div className="flex gap-4">
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-ochre text-bush font-mono text-xs uppercase tracking-widest hover:bg-[#dda054] transition-colors"
+                  className="px-6 py-2 bg-cyan text-ops font-mono text-xs uppercase tracking-widest hover:bg-[#59c9d4] transition-colors"
                 >
                   Submit Sighting
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowSightingForm(false)}
-                  className="px-6 py-2 border border-bush-line text-bone/60 font-mono text-xs uppercase tracking-widest hover:text-bone hover:border-bone/40 transition-colors"
+                  className="px-6 py-2 border border-ops-line text-steel/60 font-mono text-xs uppercase tracking-widest hover:text-steel hover:border-steel/40 transition-colors"
                 >
                   Cancel
                 </button>
@@ -339,7 +338,7 @@ const RangerDashboard = () => {
 
         {/* Incident Form */}
         {showIncidentForm && (
-          <div className="border border-bush-line bg-bush-surface p-6 mb-8">
+          <div className="border border-ops-line bg-ops-surface p-6 mb-8">
             <h2 className="font-display text-lg font-semibold mb-4">Report Incident</h2>
             <form onSubmit={handleIncidentSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -424,14 +423,14 @@ const RangerDashboard = () => {
               <div className="flex gap-4">
                 <button
                   type="submit"
-                  className="px-6 py-2 border border-rust text-rust font-mono text-xs uppercase tracking-widest hover:bg-rust hover:text-bush transition-colors"
+                  className="px-6 py-2 border border-signal text-signal font-mono text-xs uppercase tracking-widest hover:bg-signal hover:text-ops transition-colors"
                 >
                   Submit Incident
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowIncidentForm(false)}
-                  className="px-6 py-2 border border-bush-line text-bone/60 font-mono text-xs uppercase tracking-widest hover:text-bone hover:border-bone/40 transition-colors"
+                  className="px-6 py-2 border border-ops-line text-steel/60 font-mono text-xs uppercase tracking-widest hover:text-steel hover:border-steel/40 transition-colors"
                 >
                   Cancel
                 </button>
@@ -444,9 +443,9 @@ const RangerDashboard = () => {
         {/* end form section */}
 
         {/* Recent Activity */}
-        <div className="border border-bush-line bg-bush-surface p-6">
+        <div className="border border-ops-line bg-ops-surface p-6">
           <h2 className="font-display text-lg font-semibold mb-4">My Recent Activity</h2>
-          <div className="border border-bush-line">
+          <div className="border border-ops-line">
             {mySightings.slice(0, 5).map((sighting) => (
               <div key={sighting.id} className="field-tag">
                 <span
@@ -455,16 +454,16 @@ const RangerDashboard = () => {
                 <div className="flex-1 flex justify-between">
                   <div>
                     <h4 className="font-display font-semibold text-sm">{sighting.species?.commonName}</h4>
-                    <p className="font-mono text-[11px] text-bone/50 mt-1">
+                    <p className="font-mono text-[11px] text-steel/50 mt-1">
                       {sighting.count} individuals &middot; {sighting.location}
                     </p>
-                    <p className="text-xs text-bone/40 mt-1">
+                    <p className="text-xs text-steel/40 mt-1">
                       {new Date(sighting.sightingDate).toLocaleDateString()}
                     </p>
                   </div>
                   <span
                     className={`font-mono text-[10px] uppercase tracking-widest px-2 py-1 border h-fit ${
-                      sighting.verified ? 'border-teal text-teal' : 'border-ochre-dim text-ochre'
+                      sighting.verified ? 'border-amber text-amber' : 'border-cyan-dim text-cyan'
                     }`}
                   >
                     {sighting.verified ? 'Verified' : 'Pending'}
@@ -473,7 +472,7 @@ const RangerDashboard = () => {
               </div>
             ))}
             {mySightings.length === 0 && (
-              <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-4">
+              <p className="text-center font-mono text-xs uppercase tracking-widest text-steel/40 py-4">
                 No sightings recorded yet
               </p>
             )}
