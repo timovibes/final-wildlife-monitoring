@@ -78,7 +78,7 @@ const ResearcherDashboard = () => {
   const [coOccurrenceError, setCoOccurrenceError] = useState(null);
 
   // Field-ops palette for charts (recharts needs literal hex, not Tailwind classes)
-  const COLORS     = ['#C98A3E', '#4A7C7C', '#8C6229', '#6B8E8E', '#A8AE9C'];
+  const COLORS     = ['#E0A94C', '#3FB8C4', '#C9A24C', '#245F66', '#7B8794'];
 
   // Species.conservationStatus is stored as short IUCN codes (LC, NT, VU, EN,
   // CR, EW, EX) — these keys must match those codes, not full English words.
@@ -87,13 +87,13 @@ const ResearcherDashboard = () => {
     EN: 'Endangered', CR: 'Critically Endangered', EW: 'Extinct in Wild', EX: 'Extinct',
   };
   const CON_COLORS = {
-    CR: '#B5432F', // rust — reserved for the most severe status
-    EW: '#B5432F',
-    EX: '#3A4433',
-    EN: '#C98A3E', // ochre
-    VU: '#8C6229',
-    NT: '#6B8E8E',
-    LC: '#4A7C7C', // teal
+    CR: '#E4463F', // signal — reserved for the most severe status
+    EW: '#E4463F',
+    EX: '#2A3036',
+    EN: '#E0A94C', // amber
+    VU: '#C9A24C',
+    NT: '#245F66',
+    LC: '#3FB8C4', // cyan
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -248,7 +248,7 @@ const ResearcherDashboard = () => {
     setExpandedWeek(week);
     setWeekIncidentsLoading(true);
     try {
-      const res = await api.get(`/incidents?startDate=${week.weekStart}&endDate=${week.weekEnd}`);
+            const res = await api.get(`/incidents?startDate=${week.weekStart}&endDate=${week.weekEnd}`);
       if (res.data.success) {
         setWeekIncidents(res.data.data.incidents);
       }
@@ -271,9 +271,9 @@ const ResearcherDashboard = () => {
 
   // ── Battery colour helper ───────────────────────────────────────────────────
   const batteryColor = (level) => {
-    if (level >= 60) return 'text-teal';
-    if (level >= 30) return 'text-ochre';
-    return 'text-rust';
+    if (level >= 60) return 'text-amber';
+    if (level >= 30) return 'text-cyan';
+    return 'text-signal';
   };
 
   // Small counts shown next to a few tab labels so researchers can tell at a
@@ -282,12 +282,12 @@ const ResearcherDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-bush text-bone font-body">
+      <div className="min-h-screen bg-ops text-steel font-body">
         <Navbar user={user} />
         <div className="flex items-center justify-center h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-10 w-10 border-2 border-bush-line border-t-ochre mx-auto"></div>
-            <p className="mt-4 font-mono text-xs uppercase tracking-widest text-bone/50">Loading analytics...</p>
+            <div className="animate-spin rounded-full h-10 w-10 border-2 border-ops-line border-t-cyan mx-auto"></div>
+            <p className="mt-4 font-mono text-xs uppercase tracking-widest text-steel/50">Loading analytics...</p>
           </div>
         </div>
       </div>
@@ -295,7 +295,7 @@ const ResearcherDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-bush text-bone font-body">
+    <div className="min-h-screen bg-ops text-steel font-body">
       <Navbar user={user} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -303,13 +303,13 @@ const ResearcherDashboard = () => {
         {/* Header */}
         <div className="mb-6">
           <h1 className="font-display text-3xl font-semibold">Researcher Dashboard</h1>
-          <p className="mt-2 font-mono text-xs uppercase tracking-widest text-bone/50">
+          <p className="mt-2 font-mono text-xs uppercase tracking-widest text-steel/50">
             Analytics and biodiversity insights
           </p>
         </div>
 
         {/* ── Tab Navigation ───────────────────────────────────────────────── */}
-        <div className="flex flex-wrap gap-1 border-b border-bush-line mb-8">
+        <div className="flex flex-wrap gap-1 border-b border-ops-line mb-8">
           {TABS.map(({ id, label, icon: Icon }) => {
             const isActive = activeTab === id;
             const badge = id === 'incidents' && anomalyFlagCount > 0 ? anomalyFlagCount : null;
@@ -319,14 +319,14 @@ const ResearcherDashboard = () => {
                 onClick={() => setActiveTab(id)}
                 className={`flex items-center gap-2 px-4 py-3 font-mono text-[11px] uppercase tracking-widest border-b-2 transition-colors ${
                   isActive
-                    ? 'border-ochre text-bone'
-                    : 'border-transparent text-bone/50 hover:text-bone/80'
+                    ? 'border-cyan text-steel'
+                    : 'border-transparent text-steel/50 hover:text-steel/80'
                 }`}
               >
-                <Icon className={`h-3.5 w-3.5 ${isActive ? 'text-ochre' : ''}`} />
+                <Icon className={`h-3.5 w-3.5 ${isActive ? 'text-cyan' : ''}`} />
                 {label}
                 {badge != null && (
-                  <span className="ml-1 px-1.5 py-0.5 text-[10px] leading-none border border-rust text-rust">
+                  <span className="ml-1 px-1.5 py-0.5 text-[10px] leading-none border border-signal text-signal">
                     {badge}
                   </span>
                 )}
@@ -341,12 +341,12 @@ const ResearcherDashboard = () => {
         {activeTab === 'overview' && (
           <>
             {/* ── Info Banner (moved to top, kept compact) ──────────────────── */}
-            <div className="mb-8 border border-teal bg-bush-surface p-4">
+            <div className="mb-8 border border-amber bg-ops-surface p-4">
               <div className="flex gap-3">
-                <TrendingUp className="h-4 w-4 text-teal flex-shrink-0 mt-0.5" />
+                <TrendingUp className="h-4 w-4 text-amber flex-shrink-0 mt-0.5" />
                 <div>
-                  <h3 className="font-mono text-[10px] uppercase tracking-widest text-teal">Research Access</h3>
-                  <p className="mt-1 text-sm text-bone/70">
+                  <h3 className="font-mono text-[10px] uppercase tracking-widest text-amber">Research Access</h3>
+                  <p className="mt-1 text-sm text-steel/70">
                     You have read-only access to all wildlife data. Use the tabs above to explore species,
                     incidents, and ML-driven insights.
                   </p>
@@ -357,14 +357,14 @@ const ResearcherDashboard = () => {
             {/* ── Statistics Grid ────────────────────────────────────────────── */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
               {[
-                { icon: Layers,        label: 'Species',    value: stats?.totalSpecies,      accent: 'text-ochre' },
-                { icon: Eye,           label: 'Sightings',  value: stats?.totalSightings,    accent: 'text-teal'  },
-                { icon: AlertTriangle, label: 'Incidents',  value: stats?.totalIncidents,    accent: 'text-rust'  },
-                { icon: TrendingUp,    label: 'Endangered', value: stats?.endangeredSpecies, accent: 'text-ochre' },
+                { icon: Layers,        label: 'Species',    value: stats?.totalSpecies,      accent: 'text-cyan' },
+                { icon: Eye,           label: 'Sightings',  value: stats?.totalSightings,    accent: 'text-amber'  },
+                { icon: AlertTriangle, label: 'Incidents',  value: stats?.totalIncidents,    accent: 'text-signal'  },
+                { icon: TrendingUp,    label: 'Endangered', value: stats?.endangeredSpecies, accent: 'text-cyan' },
               ].map(({ icon: Icon, label, value, accent }) => (
-                <div key={label} className="border border-bush-line bg-bush-surface p-5">
+                <div key={label} className="border border-ops-line bg-ops-surface p-5">
                   <div className="flex items-center justify-between mb-3">
-                    <p className="font-mono text-[10px] uppercase tracking-widest text-bone/50">{label}</p>
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-steel/50">{label}</p>
                     <Icon className={`h-4 w-4 ${accent}`} />
                   </div>
                   <p className="font-display text-3xl font-semibold">{value || 0}</p>
@@ -373,26 +373,26 @@ const ResearcherDashboard = () => {
             </div>
 
             {/* ── Sightings Over Time ─────────────────────────────────────────── */}
-            <div className="border border-bush-line bg-bush-surface p-6">
+            <div className="border border-ops-line bg-ops-surface p-6">
               <div className="flex items-center mb-4">
-                <TrendingUp className="h-4 w-4 text-teal mr-2" />
+                <TrendingUp className="h-4 w-4 text-amber mr-2" />
                 <h2 className="font-display text-base font-semibold">Sightings Over Time</h2>
-                <span className="ml-2 font-mono text-[11px] text-bone/40">(last 12 months)</span>
+                <span className="ml-2 font-mono text-[11px] text-steel/40">(last 12 months)</span>
               </div>
               {monthlyTrends.length === 0 ? (
-                <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-12">No trend data available</p>
+                <p className="text-center font-mono text-xs uppercase tracking-widest text-steel/40 py-12">No trend data available</p>
               ) : (
                 <ResponsiveContainer width="100%" height={280}>
                   <LineChart data={monthlyTrends}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#3A4433" />
-                    <XAxis dataKey="month" stroke="#A8AE9C" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
-                    <YAxis stroke="#A8AE9C" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
-                    <Tooltip contentStyle={{ background: '#242D1F', border: '1px solid #3A4433', color: '#EDE6D3', fontFamily: 'IBM Plex Mono' }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2A3036" />
+                    <XAxis dataKey="month" stroke="#7B8794" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
+                    <YAxis stroke="#7B8794" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
+                    <Tooltip contentStyle={{ background: '#14171B', border: '1px solid #2A3036', color: '#C7CDD4', fontFamily: 'IBM Plex Mono' }} />
                     <Legend wrapperStyle={{ fontFamily: 'IBM Plex Mono', fontSize: 11 }} />
                     <Line
                       type="monotone"
                       dataKey="sightings"
-                      stroke="#4A7C7C"
+                      stroke="#3FB8C4"
                       strokeWidth={2}
                       dot={{ r: 4 }}
                       name="Sightings"
@@ -412,7 +412,7 @@ const ResearcherDashboard = () => {
             {/* ── Species Distribution + Top 5 Species ───────────────────────── */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               {/* Species Distribution */}
-              <div className="border border-bush-line bg-bush-surface p-6">
+              <div className="border border-ops-line bg-ops-surface p-6">
                 <h2 className="font-display text-base font-semibold mb-4">Species Distribution by Category</h2>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
@@ -428,27 +428,27 @@ const ResearcherDashboard = () => {
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip contentStyle={{ background: '#242D1F', border: '1px solid #3A4433', color: '#EDE6D3', fontFamily: 'IBM Plex Mono' }} />
+                    <Tooltip contentStyle={{ background: '#14171B', border: '1px solid #2A3036', color: '#C7CDD4', fontFamily: 'IBM Plex Mono' }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
 
               {/* Top 5 Most Sighted Species */}
-              <div className="border border-bush-line bg-bush-surface p-6">
+              <div className="border border-ops-line bg-ops-surface p-6">
                 <div className="flex items-center mb-4">
-                  <Eye className="h-4 w-4 text-teal mr-2" />
+                  <Eye className="h-4 w-4 text-amber mr-2" />
                   <h2 className="font-display text-base font-semibold">Top 5 Most Sighted Species</h2>
                 </div>
                 {topSpecies.length === 0 ? (
-                  <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-12">No data available</p>
+                  <p className="text-center font-mono text-xs uppercase tracking-widest text-steel/40 py-12">No data available</p>
                 ) : (
                   <ResponsiveContainer width="100%" height={260}>
                     <BarChart data={topSpecies} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#3A4433" />
-                      <XAxis type="number" stroke="#A8AE9C" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
-                      <YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono', fill: '#A8AE9C' }} />
-                      <Tooltip contentStyle={{ background: '#242D1F', border: '1px solid #3A4433', color: '#EDE6D3', fontFamily: 'IBM Plex Mono' }} />
-                      <Bar dataKey="sightings" fill="#4A7C7C" name="Sightings" />
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#2A3036" />
+                      <XAxis type="number" stroke="#7B8794" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
+                      <YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono', fill: '#7B8794' }} />
+                      <Tooltip contentStyle={{ background: '#14171B', border: '1px solid #2A3036', color: '#C7CDD4', fontFamily: 'IBM Plex Mono' }} />
+                      <Bar dataKey="sightings" fill="#3FB8C4" name="Sightings" />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -456,13 +456,13 @@ const ResearcherDashboard = () => {
             </div>
 
             {/* ── Conservation Status ─────────────────────────────────────────── */}
-            <div className="border border-bush-line bg-bush-surface p-6 mb-8">
+            <div className="border border-ops-line bg-ops-surface p-6 mb-8">
               <div className="flex items-center mb-4">
-                <ShieldAlert className="h-4 w-4 text-rust mr-2" />
+                <ShieldAlert className="h-4 w-4 text-signal mr-2" />
                 <h2 className="font-display text-base font-semibold">Conservation Status</h2>
               </div>
               {conservationStatus.length === 0 ? (
-                <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-12">No data available</p>
+                <p className="text-center font-mono text-xs uppercase tracking-widest text-steel/40 py-12">No data available</p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                   <ResponsiveContainer width="100%" height={220}>
@@ -482,11 +482,11 @@ const ResearcherDashboard = () => {
                           />
                         ))}
                       </Pie>
-                      <Tooltip contentStyle={{ background: '#242D1F', border: '1px solid #3A4433', color: '#EDE6D3', fontFamily: 'IBM Plex Mono' }} />
+                      <Tooltip contentStyle={{ background: '#14171B', border: '1px solid #2A3036', color: '#C7CDD4', fontFamily: 'IBM Plex Mono' }} />
                     </PieChart>
                   </ResponsiveContainer>
                   {/* Legend */}
-                  <div className="space-y-1.5 border-t md:border-t-0 md:border-l border-bush-line pt-3 md:pt-0 md:pl-6">
+                  <div className="space-y-1.5 border-t md:border-t-0 md:border-l border-ops-line pt-3 md:pt-0 md:pl-6">
                     {conservationStatus.map((entry, index) => (
                       <div key={entry.name} className="flex items-center justify-between font-mono text-xs">
                         <div className="flex items-center">
@@ -494,62 +494,62 @@ const ResearcherDashboard = () => {
                             className="inline-block w-2.5 h-2.5 mr-2"
                             style={{ backgroundColor: CON_COLORS[entry.name] || COLORS[index % COLORS.length] }}
                           />
-                          <span className="text-bone/60">{STATUS_LABELS[entry.name] || entry.name}</span>
+                          <span className="text-steel/60">{STATUS_LABELS[entry.name] || entry.name}</span>
                         </div>
-                        <span className="font-semibold text-bone">{entry.value}</span>
+                        <span className="font-semibold text-steel">{entry.value}</span>
                       </div>
-                    ))}
+                                          ))}
                   </div>
                 </div>
               )}
             </div>
 
             {/* ── Endangered Species List ──────────────────────────────────────── */}
-            <div className="border border-bush-line bg-bush-surface p-6">
+            <div className="border border-ops-line bg-ops-surface p-6">
               <div className="flex items-center mb-4">
-                <AlertTriangle className="h-4 w-4 text-rust mr-2" />
+                <AlertTriangle className="h-4 w-4 text-signal mr-2" />
                 <h2 className="font-display text-base font-semibold">Endangered Species Monitor</h2>
-                <span className="ml-2 font-mono text-[11px] text-bone/40">({endangeredList.length} species)</span>
+                <span className="ml-2 font-mono text-[11px] text-steel/40">({endangeredList.length} species)</span>
               </div>
-              <div className="overflow-x-auto border border-bush-line">
-                <table className="min-w-full divide-y divide-bush-line text-sm">
-                  <thead className="bg-bush">
+              <div className="overflow-x-auto border border-ops-line">
+                <table className="min-w-full divide-y divide-ops-line text-sm">
+                  <thead className="bg-ops">
                     <tr>
                       {['Common Name', 'Scientific Name', 'Category', 'Status', 'Population', 'Sightings'].map(h => (
-                        <th key={h} className="px-4 py-3 text-left font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">
+                        <th key={h} className="px-4 py-3 text-left font-mono text-[10px] font-medium text-steel/50 uppercase tracking-widest">
                           {h}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-bush-line">
+                  <tbody className="divide-y divide-ops-line">
                     {endangeredList.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-4 py-8 text-center font-mono text-xs uppercase tracking-widest text-bone/40">
+                        <td colSpan={6} className="px-4 py-8 text-center font-mono text-xs uppercase tracking-widest text-steel/40">
                           No endangered species data available
                         </td>
                       </tr>
                     ) : (
                       endangeredList.map((sp) => (
-                        <tr key={sp.id} className="hover:bg-bush transition-colors">
+                        <tr key={sp.id} className="hover:bg-ops transition-colors">
                           <td className="px-4 py-3 font-medium">{sp.commonName}</td>
-                          <td className="px-4 py-3 italic font-mono text-bone/50">{sp.scientificName}</td>
-                          <td className="px-4 py-3 text-bone/70">{sp.category}</td>
+                          <td className="px-4 py-3 italic font-mono text-steel/50">{sp.scientificName}</td>
+                          <td className="px-4 py-3 text-steel/70">{sp.category}</td>
                           <td className="px-4 py-3">
                             <span
                               className="px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest border"
                               style={{
-                                borderColor: CON_COLORS[sp.conservationStatus] || '#3A4433',
-                                color: CON_COLORS[sp.conservationStatus] || '#A8AE9C',
+                                borderColor: CON_COLORS[sp.conservationStatus] || '#2A3036',
+                                color: CON_COLORS[sp.conservationStatus] || '#7B8794',
                               }}
                             >
                               {STATUS_LABELS[sp.conservationStatus] || sp.conservationStatus}
                             </span>
                           </td>
-                          <td className="px-4 py-3 font-mono text-bone/70">
+                          <td className="px-4 py-3 font-mono text-steel/70">
                             {sp.population != null ? sp.population.toLocaleString() : '—'}
                           </td>
-                          <td className="px-4 py-3 font-mono text-bone/70">
+                          <td className="px-4 py-3 font-mono text-steel/70">
                             {sp.recentSightings || 0}
                           </td>
                         </tr>
@@ -568,42 +568,42 @@ const ResearcherDashboard = () => {
         {activeTab === 'incidents' && (
           <>
             {/* ── Incidents by Type ─────────────────────────────────────────── */}
-            <div className="border border-bush-line bg-bush-surface p-6 mb-8">
+            <div className="border border-ops-line bg-ops-surface p-6 mb-8">
               <h2 className="font-display text-base font-semibold mb-4">Incidents by Type</h2>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={incidentTrends}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#3A4433" />
-                  <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} stroke="#A8AE9C" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
-                  <YAxis stroke="#A8AE9C" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
-                  <Tooltip contentStyle={{ background: '#242D1F', border: '1px solid #3A4433', color: '#EDE6D3', fontFamily: 'IBM Plex Mono' }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#2A3036" />
+                  <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} stroke="#7B8794" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
+                  <YAxis stroke="#7B8794" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
+                  <Tooltip contentStyle={{ background: '#14171B', border: '1px solid #2A3036', color: '#C7CDD4', fontFamily: 'IBM Plex Mono' }} />
                   <Legend wrapperStyle={{ fontFamily: 'IBM Plex Mono', fontSize: 11 }} />
-                  <Bar dataKey="count" fill="#B5432F" />
+                  <Bar dataKey="count" fill="#E4463F" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
 
             {/* ── IoT Sensor Activity ───────────────────────────────────────── */}
-            <div className="border border-bush-line bg-bush-surface p-6 mb-8">
+            <div className="border border-ops-line bg-ops-surface p-6 mb-8">
               <div className="flex items-center mb-4">
-                <Radio className="h-4 w-4 text-ochre mr-2" />
+                <Radio className="h-4 w-4 text-cyan mr-2" />
                 <h2 className="font-display text-base font-semibold">IoT Sensor Activity</h2>
-                <span className="ml-2 font-mono text-[11px] text-bone/40">({sensorSummary.length} sensors)</span>
+                <span className="ml-2 font-mono text-[11px] text-steel/40">({sensorSummary.length} sensors)</span>
               </div>
-              <div className="overflow-x-auto border border-bush-line">
-                <table className="min-w-full divide-y divide-bush-line text-sm">
-                  <thead className="bg-bush">
+              <div className="overflow-x-auto border border-ops-line">
+                <table className="min-w-full divide-y divide-ops-line text-sm">
+                  <thead className="bg-ops">
                     <tr>
                       {['Sensor ID', 'Type', 'Data Points', 'Avg Battery', 'Last Reading'].map(h => (
-                        <th key={h} className="px-4 py-3 text-left font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">
+                        <th key={h} className="px-4 py-3 text-left font-mono text-[10px] font-medium text-steel/50 uppercase tracking-widest">
                           {h}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-bush-line">
+                  <tbody className="divide-y divide-ops-line">
                     {sensorSummary.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-4 py-8 text-center font-mono text-xs uppercase tracking-widest text-bone/40">
+                        <td colSpan={5} className="px-4 py-8 text-center font-mono text-xs uppercase tracking-widest text-steel/40">
                           No sensor data available
                         </td>
                       </tr>
@@ -613,18 +613,18 @@ const ResearcherDashboard = () => {
                         const lastSeen = new Date(sensor.lastReading);
                         const minutesAgo = Math.round((Date.now() - lastSeen) / 60000);
                         return (
-                          <tr key={sensor.sensorId} className="hover:bg-bush transition-colors">
+                          <tr key={sensor.sensorId} className="hover:bg-ops transition-colors">
                             <td className="px-4 py-3 font-mono font-medium">
                               {sensor.sensorId}
                             </td>
                             <td className="px-4 py-3">
-                              <span className="px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest border border-ochre-dim text-ochre">
+                              <span className="px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest border border-cyan-dim text-cyan">
                                 {sensor.deviceType}
                               </span>
                             </td>
-                            <td className="px-4 py-3 font-mono text-bone/70">
+                            <td className="px-4 py-3 font-mono text-steel/70">
                               <div className="flex items-center">
-                                <Zap className="h-3.5 w-3.5 text-bone/30 mr-1" />
+                                <Zap className="h-3.5 w-3.5 text-steel/30 mr-1" />
                                 {parseInt(sensor.dataPoints).toLocaleString()}
                               </div>
                             </td>
@@ -634,7 +634,7 @@ const ResearcherDashboard = () => {
                                 {battery}%
                               </div>
                             </td>
-                            <td className="px-4 py-3 font-mono text-bone/50">
+                            <td className="px-4 py-3 font-mono text-steel/50">
                               <div className="flex items-center">
                                 <Clock className="h-3.5 w-3.5 mr-1" />
                                 {minutesAgo < 60
@@ -656,28 +656,28 @@ const ResearcherDashboard = () => {
             {/* ═══════════════════════════════════════════════════════════════
                 INCIDENT ANOMALY DETECTION (ML — Isolation Forest)
                ═══════════════════════════════════════════════════════════════ */}
-            <div className="border border-bush-line bg-bush-surface p-6 mb-8">
+            <div className="border border-ops-line bg-ops-surface p-6 mb-8">
               <div className="flex items-center mb-4">
-                <AlertOctagon className="h-4 w-4 text-rust mr-2" />
+                <AlertOctagon className="h-4 w-4 text-signal mr-2" />
                 <h2 className="font-display text-base font-semibold">Incident Anomaly Detection</h2>
-                <span className="ml-2 font-mono text-[11px] text-bone/40">ML (Isolation Forest) · last 16 weeks</span>
+                <span className="ml-2 font-mono text-[11px] text-steel/40">ML (Isolation Forest) · last 16 weeks</span>
               </div>
 
               {anomalyError ? (
-                <p className="text-center font-mono text-xs uppercase tracking-widest text-rust py-8">{anomalyError}</p>
+                <p className="text-center font-mono text-xs uppercase tracking-widest text-signal py-8">{anomalyError}</p>
               ) : anomalyMessage ? (
-                <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-8">{anomalyMessage}</p>
+                <p className="text-center font-mono text-xs uppercase tracking-widest text-steel/40 py-8">{anomalyMessage}</p>
               ) : anomalyWeeks.length === 0 ? (
-                <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-8">No incident data available</p>
+                <p className="text-center font-mono text-xs uppercase tracking-widest text-steel/40 py-8">No incident data available</p>
               ) : (
                 <>
                   <ResponsiveContainer width="100%" height={220}>
                     <BarChart data={anomalyWeeks}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#3A4433" />
-                      <XAxis dataKey="weekLabel" stroke="#A8AE9C" tick={{ fontSize: 10, fontFamily: 'IBM Plex Mono' }} />
-                      <YAxis stroke="#A8AE9C" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#2A3036" />
+                      <XAxis dataKey="weekLabel" stroke="#7B8794" tick={{ fontSize: 10, fontFamily: 'IBM Plex Mono' }} />
+                      <YAxis stroke="#7B8794" tick={{ fontSize: 11, fontFamily: 'IBM Plex Mono' }} />
                       <Tooltip
-                        contentStyle={{ background: '#242D1F', border: '1px solid #3A4433', color: '#EDE6D3', fontFamily: 'IBM Plex Mono' }}
+                        contentStyle={{ background: '#14171B', border: '1px solid #2A3036', color: '#C7CDD4', fontFamily: 'IBM Plex Mono' }}
                         formatter={(value, name, props) => [
                           `${value} incidents${props.payload.isAnomaly ? ' — flagged anomalous' : ''}`,
                           'Count',
@@ -685,46 +685,46 @@ const ResearcherDashboard = () => {
                       />
                       <Bar dataKey="count" cursor="pointer" onClick={(data) => handleWeekDrillDown(data)}>
                         {anomalyWeeks.map((w, i) => (
-                          <Cell key={i} fill={w.isAnomaly ? '#B5432F' : '#4A7C7C'} />
+                          <Cell key={i} fill={w.isAnomaly ? '#E4463F' : '#3FB8C4'} />
                         ))}
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
-                  <p className="mt-3 font-mono text-[11px] text-bone/40">
-                    <span className="inline-block w-2 h-2 bg-rust mr-1.5" /> Flagged anomalous
-                    <span className="inline-block w-2 h-2 bg-teal ml-4 mr-1.5" /> Normal range
+                  <p className="mt-3 font-mono text-[11px] text-steel/40">
+                    <span className="inline-block w-2 h-2 bg-signal mr-1.5" /> Flagged anomalous
+                    <span className="inline-block w-2 h-2 bg-amber ml-4 mr-1.5" /> Normal range
                     <span className="ml-4">Click any bar to view that week's incidents</span>
                   </p>
 
                   {/* Flagged weeks list — reasoning shown for each, drill-down inline */}
                   {anomalyWeeks.some(w => w.isAnomaly) && (
-                    <div className="mt-4 border-t border-bush-line pt-4 space-y-2">
-                      <p className="font-mono text-[10px] uppercase tracking-widest text-rust mb-2">Flagged Weeks</p>
+                    <div className="mt-4 border-t border-ops-line pt-4 space-y-2">
+                      <p className="font-mono text-[10px] uppercase tracking-widest text-signal mb-2">Flagged Weeks</p>
                       {anomalyWeeks.filter(w => w.isAnomaly).map((week) => (
-                        <div key={week.weekStart} className="border border-rust/40">
+                        <div key={week.weekStart} className="border border-signal/40">
                           <button
                             onClick={() => handleWeekDrillDown(week)}
-                            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-bush transition-colors"
+                            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-ops transition-colors"
                           >
                             <div className="flex items-center gap-2">
                               {expandedWeek?.weekStart === week.weekStart ? (
-                                <ChevronDown className="h-3.5 w-3.5 text-rust flex-shrink-0" />
+                                <ChevronDown className="h-3.5 w-3.5 text-signal flex-shrink-0" />
                               ) : (
-                                <ChevronRight className="h-3.5 w-3.5 text-rust flex-shrink-0" />
+                                <ChevronRight className="h-3.5 w-3.5 text-signal flex-shrink-0" />
                               )}
                               <div>
                                 <p className="font-display text-sm font-semibold">{week.weekLabel}</p>
-                                <p className="text-xs text-bone/60 mt-0.5">{buildAnomalyReasoning(week)}</p>
+                                <p className="text-xs text-steel/60 mt-0.5">{buildAnomalyReasoning(week)}</p>
                               </div>
                             </div>
                           </button>
 
                           {expandedWeek?.weekStart === week.weekStart && (
-                            <div className="border-t border-bush-line p-4">
+                            <div className="border-t border-ops-line p-4">
                               {weekIncidentsLoading ? (
-                                <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-4">Loading incidents...</p>
+                                <p className="text-center font-mono text-xs uppercase tracking-widest text-steel/40 py-4">Loading incidents...</p>
                               ) : weekIncidents.length === 0 ? (
-                                <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-4">No incidents found for this week</p>
+                                <p className="text-center font-mono text-xs uppercase tracking-widest text-steel/40 py-4">No incidents found for this week</p>
                               ) : (
                                 <div className="space-y-3">
                                   {weekIncidents.map((incident) => (
@@ -732,15 +732,15 @@ const ResearcherDashboard = () => {
                                       <div className="flex-1 flex justify-between items-start gap-4">
                                         <div>
                                           <h4 className="font-display font-semibold text-sm">{incident.incidentType}</h4>
-                                          <p className="text-sm text-bone/60 mt-1">{incident.description}</p>
-                                          <p className="font-mono text-[11px] text-bone/40 mt-2">
+                                          <p className="text-sm text-steel/60 mt-1">{incident.description}</p>
+                                          <p className="font-mono text-[11px] text-steel/40 mt-2">
                                             {incident.location || 'Location not recorded'} &middot; Reported by {incident.reporter?.firstName} {incident.reporter?.lastName}
                                           </p>
                                         </div>
                                         <span className={`font-mono text-[10px] uppercase tracking-widest px-2 py-1 border flex-shrink-0 ${
-                                          incident.severity === 'Critical' ? 'border-rust text-rust' :
-                                          incident.severity === 'High' ? 'border-ochre text-ochre' :
-                                          'border-bush-line text-bone/50'
+                                          incident.severity === 'Critical' ? 'border-signal text-signal' :
+                                          incident.severity === 'High' ? 'border-cyan text-cyan' :
+                                          'border-ops-line text-steel/50'
                                         }`}>
                                           {incident.severity}
                                         </span>
@@ -760,37 +760,37 @@ const ResearcherDashboard = () => {
             </div>
 
             {/* ── Recent Sightings Table (progressive loading, issue #6) ─────── */}
-            <div className="border border-bush-line bg-bush-surface p-6">
+            <div className="border border-ops-line bg-ops-surface p-6">
               <h2 className="font-display text-base font-semibold mb-4">Recent Sightings</h2>
-              <div className="overflow-x-auto border border-bush-line">
-                <table className="min-w-full divide-y divide-bush-line">
-                  <thead className="bg-bush">
+              <div className="overflow-x-auto border border-ops-line">
+                <table className="min-w-full divide-y divide-ops-line">
+                  <thead className="bg-ops">
                     <tr>
                       {['Species', 'Count', 'Location', 'Observer', 'Date', 'Status'].map(h => (
-                        <th key={h} className="px-4 py-3 text-left font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">
+                        <th key={h} className="px-4 py-3 text-left font-mono text-[10px] font-medium text-steel/50 uppercase tracking-widest">
                           {h}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-bush-line">
+                  <tbody className="divide-y divide-ops-line">
                     {sightings.slice(0, visibleSightingsCount).map((sighting) => (
-                      <tr key={sighting.id} className="hover:bg-bush transition-colors">
+                      <tr key={sighting.id} className="hover:bg-ops transition-colors">
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="text-sm font-medium">{sighting.species?.commonName}</div>
-                          <div className="font-mono text-[11px] italic text-bone/40">{sighting.species?.scientificName}</div>
+                          <div className="font-mono text-[11px] italic text-steel/40">{sighting.species?.scientificName}</div>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm">{sighting.count}</td>
-                        <td className="px-4 py-3 whitespace-nowrap font-mono text-xs text-bone/50">{sighting.location || 'N/A'}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-bone/60">
+                        <td className="px-4 py-3 whitespace-nowrap font-mono text-xs text-steel/50">{sighting.location || 'N/A'}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-steel/60">
                           {sighting.observer?.firstName} {sighting.observer?.lastName}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap font-mono text-xs text-bone/50">
+                        <td className="px-4 py-3 whitespace-nowrap font-mono text-xs text-steel/50">
                           {new Date(sighting.sightingDate).toLocaleDateString()}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className={`px-2 py-1 font-mono text-[10px] uppercase tracking-widest border ${
-                            sighting.verified ? 'border-teal text-teal' : 'border-ochre-dim text-ochre'
+                            sighting.verified ? 'border-amber text-amber' : 'border-cyan-dim text-cyan'
                           }`}>
                             {sighting.verified ? 'Verified' : 'Pending'}
                           </span>
@@ -802,15 +802,15 @@ const ResearcherDashboard = () => {
               </div>
 
               {sightings.length === 0 && (
-                <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-8">No sightings data available</p>
+                <p className="text-center font-mono text-xs uppercase tracking-widest text-steel/40 py-8">No sightings data available</p>
               )}
 
               {sightings.length > 10 && (
-                <div className="flex justify-center mt-4 pt-4 border-t border-bush-line">
+                <div className="flex justify-center mt-4 pt-4 border-t border-ops-line">
                   {visibleSightingsCount < sightings.length ? (
                     <button
                       onClick={() => setVisibleSightingsCount(prev => Math.min(prev + 10, sightings.length))}
-                      className="flex items-center gap-2 px-4 py-2 border border-bush-line text-bone/60 font-mono text-[11px] uppercase tracking-widest hover:text-bone hover:border-ochre-dim transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 border border-ops-line text-steel/60 font-mono text-[11px] uppercase tracking-widest hover:text-steel hover:border-cyan-dim transition-colors"
                     >
                       <ChevronDown className="h-3.5 w-3.5" />
                       Show More ({sightings.length - visibleSightingsCount} remaining)
@@ -818,7 +818,7 @@ const ResearcherDashboard = () => {
                   ) : (
                     <button
                       onClick={() => setVisibleSightingsCount(10)}
-                      className="flex items-center gap-2 px-4 py-2 border border-bush-line text-bone/60 font-mono text-[11px] uppercase tracking-widest hover:text-bone hover:border-ochre-dim transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 border border-ops-line text-steel/60 font-mono text-[11px] uppercase tracking-widest hover:text-steel hover:border-cyan-dim transition-colors"
                     >
                       <ChevronUp className="h-3.5 w-3.5" />
                       Show Less
@@ -836,44 +836,44 @@ const ResearcherDashboard = () => {
         {activeTab === 'insights' && (
           <>
             {/* ── Conservation Risk Score ────────────────────────────────────── */}
-            <div className="border border-bush-line bg-bush-surface p-6 mb-8">
+            <div className="border border-ops-line bg-ops-surface p-6 mb-8">
               <div className="flex items-center mb-4">
-                <Gauge className="h-4 w-4 text-rust mr-2" />
+                <Gauge className="h-4 w-4 text-signal mr-2" />
                 <h2 className="font-display text-base font-semibold">Conservation Risk Score</h2>
-                <span className="ml-2 font-mono text-[11px] text-bone/40">ML-computed, updates on refresh</span>
+                <span className="ml-2 font-mono text-[11px] text-steel/40">ML-computed, updates on refresh</span>
               </div>
 
               {riskScoreError ? (
-                <p className="text-center font-mono text-xs uppercase tracking-widest text-rust py-8">{riskScoreError}</p>
+                <p className="text-center font-mono text-xs uppercase tracking-widest text-signal py-8">{riskScoreError}</p>
               ) : riskScores.length === 0 ? (
-                <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-8">No risk data available</p>
+                <p className="text-center font-mono text-xs uppercase tracking-widest text-steel/40 py-8">No risk data available</p>
               ) : (
-                <div className="overflow-x-auto border border-bush-line">
+                <div className="overflow-x-auto border border-ops-line">
                   <table className="min-w-full text-sm">
                     <thead>
-                      <tr className="border-b border-bush-line bg-bush">
+                      <tr className="border-b border-ops-line bg-ops">
                         {['Species', 'Status', 'Risk Score', 'Risk Level', 'Trend'].map(h => (
-                          <th key={h} className="px-4 py-3 text-left font-mono text-[10px] font-medium text-bone/50 uppercase tracking-widest">{h}</th>
+                          <th key={h} className="px-4 py-3 text-left font-mono text-[10px] font-medium text-steel/50 uppercase tracking-widest">{h}</th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-bush-line">
+                    <tbody className="divide-y divide-ops-line">
                       {riskScores.slice(0, 10).map((s) => (
-                        <tr key={s.speciesId} className="hover:bg-bush transition-colors">
+                        <tr key={s.speciesId} className="hover:bg-ops transition-colors">
                           <td className="px-4 py-3 font-medium">{s.commonName}</td>
-                          <td className="px-4 py-3 font-mono text-xs text-bone/60">{s.conservationStatus}</td>
+                          <td className="px-4 py-3 font-mono text-xs text-steel/60">{s.conservationStatus}</td>
                           <td className="px-4 py-3 font-mono font-bold">{s.riskScore}</td>
                           <td className="px-4 py-3">
                             <span className={`font-mono text-[10px] uppercase tracking-widest px-2 py-1 border ${
-                              s.riskLevel === 'Critical' ? 'border-rust text-rust' :
-                              s.riskLevel === 'High' ? 'border-ochre text-ochre' :
-                              s.riskLevel === 'Medium' ? 'border-ochre-dim text-ochre' :
-                              'border-teal text-teal'
+                              s.riskLevel === 'Critical' ? 'border-signal text-signal' :
+                              s.riskLevel === 'High' ? 'border-cyan text-cyan' :
+                              s.riskLevel === 'Medium' ? 'border-cyan-dim text-cyan' :
+                              'border-amber text-amber'
                             }`}>
                               {s.riskLevel}
                             </span>
                           </td>
-                          <td className="px-4 py-3 font-mono text-xs text-bone/50">
+                          <td className="px-4 py-3 font-mono text-xs text-steel/50">
                             {s.breakdown.sightingTrendSlope == null ? 'Insufficient data' :
                               s.breakdown.sightingTrendSlope < 0 ? 'Declining' :
                               s.breakdown.sightingTrendSlope > 0 ? 'Rising' : 'Flat'}
@@ -889,23 +889,23 @@ const ResearcherDashboard = () => {
             {/* ═══════════════════════════════════════════════════════════════
                 SIGHTING HOTSPOTS (ML — DBSCAN clustering)
                ═══════════════════════════════════════════════════════════════ */}
-            <div className="border border-bush-line bg-bush-surface p-6 mb-8">
+            <div className="border border-ops-line bg-ops-surface p-6 mb-8">
               <div className="flex items-center mb-4">
-                <Radio className="h-4 w-4 text-teal mr-2" />
+                <Radio className="h-4 w-4 text-amber mr-2" />
                 <h2 className="font-display text-base font-semibold">Sighting Hotspots</h2>
-                <span className="ml-2 font-mono text-[11px] text-bone/40">
+                <span className="ml-2 font-mono text-[11px] text-steel/40">
                   ML-clustered (DBSCAN){hotspotNoiseCount > 0 ? ` · ${hotspotNoiseCount} isolated sightings excluded` : ''}
                 </span>
               </div>
 
               {hotspotError ? (
-                <p className="text-center font-mono text-xs uppercase tracking-widest text-rust py-8">{hotspotError}</p>
+                <p className="text-center font-mono text-xs uppercase tracking-widest text-signal py-8">{hotspotError}</p>
               ) : hotspots.length === 0 ? (
-                <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-8">
+                <p className="text-center font-mono text-xs uppercase tracking-widest text-steel/40 py-8">
                   No hotspots detected yet — need more clustered sighting data
                 </p>
               ) : (
-                <div className="h-[420px] w-full overflow-hidden border border-bush-line">
+                <div className="h-[420px] w-full overflow-hidden border border-ops-line">
                   <MapContainer center={NNP_CENTER} zoom={NNP_ZOOM} style={{ height: '100%', width: '100%' }}>
                     <TileLayer
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -917,15 +917,15 @@ const ResearcherDashboard = () => {
                         center={[cluster.centerLat, cluster.centerLng]}
                         radius={cluster.radiusMeters}
                         pathOptions={{
-                          color: cluster.pointCount >= 10 ? '#B5432F' : cluster.pointCount >= 5 ? '#C98A3E' : '#4A7C7C',
-                          fillColor: cluster.pointCount >= 10 ? '#B5432F' : cluster.pointCount >= 5 ? '#C98A3E' : '#4A7C7C',
+                          color: cluster.pointCount >= 10 ? '#E4463F' : cluster.pointCount >= 5 ? '#E0A94C' : '#3FB8C4',
+                          fillColor: cluster.pointCount >= 10 ? '#E4463F' : cluster.pointCount >= 5 ? '#E0A94C' : '#3FB8C4',
                           fillOpacity: 0.25,
                           weight: 1.5,
                         }}
                       >
                         <Popup>
                           <div className="font-mono text-xs space-y-1 min-w-[160px]">
-                            <p className="font-bold text-bush">{cluster.pointCount} sightings</p>
+                            <p className="font-bold text-ops">{cluster.pointCount} sightings</p>
                             <hr />
                             {cluster.topSpecies.map((sp) => (
                               <p key={sp.name}>{sp.name}: {sp.count}</p>
@@ -942,34 +942,34 @@ const ResearcherDashboard = () => {
             {/* ═══════════════════════════════════════════════════════════════
                 SPECIES CO-OCCURRENCE (statistical association — "lift" score)
                ═══════════════════════════════════════════════════════════════ */}
-            <div className="border border-bush-line bg-bush-surface p-6">
+            <div className="border border-ops-line bg-ops-surface p-6">
               <div className="flex items-center mb-4">
-                <GitBranch className="h-4 w-4 text-teal mr-2" />
+                <GitBranch className="h-4 w-4 text-amber mr-2" />
                 <h2 className="font-display text-base font-semibold">Species Co-occurrence</h2>
-                <span className="ml-2 font-mono text-[11px] text-bone/40">Lift score — higher = more often seen together than by chance</span>
+                <span className="ml-2 font-mono text-[11px] text-steel/40">Lift score — higher = more often seen together than by chance</span>
               </div>
 
               {coOccurrenceError ? (
-                <p className="text-center font-mono text-xs uppercase tracking-widest text-rust py-8">{coOccurrenceError}</p>
+                <p className="text-center font-mono text-xs uppercase tracking-widest text-signal py-8">{coOccurrenceError}</p>
               ) : coOccurrencePairs.length === 0 ? (
-                <p className="text-center font-mono text-xs uppercase tracking-widest text-bone/40 py-8">
+                <p className="text-center font-mono text-xs uppercase tracking-widest text-steel/40 py-8">
                   Not enough overlapping sighting data yet
                 </p>
               ) : (
-                <div className="border border-bush-line">
+                <div className="border border-ops-line">
                   {coOccurrencePairs.map((pair, i) => (
                     <div key={i} className="field-tag">
                       <div className="flex-1 flex justify-between items-center gap-4">
                         <div>
                           <h4 className="font-display font-semibold text-sm">
-                            {pair.speciesA} <span className="text-bone/40 font-body font-normal">&amp;</span> {pair.speciesB}
+                            {pair.speciesA} <span className="text-steel/40 font-body font-normal">&amp;</span> {pair.speciesB}
                           </h4>
-                          <p className="font-mono text-[11px] text-bone/50 mt-1">
+                          <p className="font-mono text-[11px] text-steel/50 mt-1">
                             Seen together {pair.coOccurrenceDays} days &middot; {pair.speciesA}: {pair.daysSeenA} days &middot; {pair.speciesB}: {pair.daysSeenB} days
                           </p>
                         </div>
                         <span className={`font-mono text-sm font-bold px-2 py-1 border flex-shrink-0 ${
-                          pair.lift >= 2 ? 'border-ochre text-ochre' : 'border-teal text-teal'
+                          pair.lift >= 2 ? 'border-cyan text-cyan' : 'border-amber text-amber'
                         }`}>
                           {pair.lift}x
                         </span>
